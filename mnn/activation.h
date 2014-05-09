@@ -8,6 +8,8 @@
 #ifndef MNN_ACTIVATION_H_INCLUDED
 #define MNN_ACTIVATION_H_INCLUDED
 
+#include <cmath>
+
 namespace MNN {
 
 namespace Activation {

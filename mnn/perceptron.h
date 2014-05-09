@@ -22,20 +22,20 @@ class Perceptron : public Layer<Float>
 {
 	public:
 
-	Perceptron(size_t nrIn, size_t nrOut, Float learnRate = 1);
+    Perceptron(size_t numIn, size_t numOut, Float learnRate = 1);
 
 	virtual ~Perceptron();
 
 	// ----------- nn interface --------------
 
 	/** set input and output size */
-	virtual void resize(size_t nrIn, size_t nrOut);
+    virtual void resize(size_t numIn, size_t numOut);
 
 	/** return size of input */
-	virtual size_t nrIn() const;
+    virtual size_t numIn() const;
 
 	/** return size of output */
-	virtual size_t nrOut() const;
+    virtual size_t numOut() const;
 
 	/** clear / randomize weights */
 	virtual void brainwash();

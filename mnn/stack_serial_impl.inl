@@ -27,26 +27,26 @@ MNN_STACKSERIAL::~StackSerial()
 // ----------- nn interface --------------
 
 MNN_TEMPLATE
-void MNN_STACKSERIAL::resize(size_t nrIn, size_t nrOut)
+void MNN_STACKSERIAL::resize(size_t numIn, size_t numOut)
 {
 	if (layer_.empty()) return;
 
-	layer_[0]->resize(nrIn, layer_[0]->nrOut());
-	layer_[layer_.size()-1]->resize(layer_[layer_.size()-1]->nrIn(), nrOut);
+    layer_[0]->resize(numIn, layer_[0]->numOut());
+    layer_[layer_.size()-1]->resize(layer_[layer_.size()-1]->numIn(), numOut);
 
 	resizeBuffers_();
 }
 
 MNN_TEMPLATE
-size_t MNN_STACKSERIAL::nrIn() const
+size_t MNN_STACKSERIAL::numIn() const
 {
-	return (layer_.empty())? 0 : layer_[0]->nrIn();
+    return (layer_.empty())? 0 : layer_[0]->numIn();
 }
 
 MNN_TEMPLATE
-size_t MNN_STACKSERIAL::nrOut() const
+size_t MNN_STACKSERIAL::numOut() const
 {
-	return (layer_.empty())? 0 : layer_[layer_.size()-1]->nrIn();
+    return (layer_.empty())? 0 : layer_[layer_.size()-1]->numIn();
 }
 
 
@@ -88,11 +88,11 @@ void MNN_STACKSERIAL::resizeBuffers_()
 	for (auto b = buffer_.begin(); b != buffer_.end(); ++b, ++i)
 	{
 		// resize layer if no fit with previous layer
-		if (i>0 && layer_[i]->nrIn() != layer_[i-1]->nrOut())
-			layer_[i]->resize(layer_[i-1]->nrOut(), layer_[i]->nrOut());
+        if (i>0 && layer_[i]->numIn() != layer_[i-1]->numOut())
+            layer_[i]->resize(layer_[i-1]->numOut(), layer_[i]->numOut());
 
 		// alloc imidiate buffer
-		b->resize(layer_[i]->nrOut());
+        b->resize(layer_[i]->numOut());
 	}
 
 	for (auto b = buffer_.begin(); b != buffer_.end(); ++b)

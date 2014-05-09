@@ -26,6 +26,6 @@ HEADERS += \
     mnn/mnn.h  \
     mnn/perceptron.h  \
     mnn/perceptron_impl.inl  \
-    mnn/serial.h  \
-    mnn/serial_impl.inl  \
+    mnn/stack_serial.h  \
+    mnn/stack_serial_impl.inl  \
     trainposition.h

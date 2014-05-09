@@ -34,13 +34,13 @@ void MNN_PERCEPTRON::resize(size_t nrIn, size_t nrOut)
 }
 
 MNN_TEMPLATE
-size_t MNN_PERCEPTRON::nrIn() const
+size_t MNN_PERCEPTRON::numIn() const
 {
 	return input_.size();
 }
 
 MNN_TEMPLATE
-size_t MNN_PERCEPTRON::nrOut() const
+size_t MNN_PERCEPTRON::numOut() const
 {
 	return output_.size();
 }

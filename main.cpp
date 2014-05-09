@@ -1,7 +1,7 @@
 #include <iostream>
 #include <algorithm>
-#include <mnn/mnn.h>
-
+#include "mnn/mnn.h"
+#include "trainposition.h"
 
 template <typename Float, class Net>
 void simple_test(Net& net, size_t nrIn, size_t nrSamples, std::vector<Float>& input, std::vector<Float>& result)
@@ -185,6 +185,8 @@ void xor_test(Net& net)
 int main()
 {
 	srand(time(NULL));
+
+    TrainPosition t; t.exec(); return 0;
 
 	//MNN::Perceptron<float, MNN::Activation::Linear> net;
 

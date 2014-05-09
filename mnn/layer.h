@@ -8,6 +8,9 @@
 #ifndef MNN_LAYER_H_INCLUDED
 #define MNN_LAYER_H_INCLUDED
 
+#include <iostream>
+
+namespace MNN {
 
 /** NN-Layer base class (abstract).
 
@@ -18,14 +21,14 @@
 	function of the input, in which case a Layer isn't even a layer in the
 	neuronal network sense.</p>
 
-	<p>there are a few must-overrides, namely: <br>
-	- resize(), which should set or reset both lengths, of input and output arrays.
-	- nrIn() and nrOut(), to return the lengths.
-	- brainwash(), to reset the weights, coefficients or whathaveyou.
-	- fprop(), this should propagte an array of float from the input to the output.
-	- bprop(), this should at least propagate the output back to the input.
-		as with back-propagation kind of nets, this should use the error (or error
-		derivative and adjust the internal weights, while passing the derivative through.
+    <p>there are a few must-overrides, namely:
+    @li resize(), which should set or reset both lengths, of input and output arrays.
+    @li nrIn() and nrOut(), to return the lengths.
+    @li brainwash(), to reset the weights, coefficients or whathaveyou.
+    @li fprop(), this should propagte an array of Float from the input to the output.
+    @li bprop(), this should at least propagate the output back to the input.
+        as with back-propagation kind of nets, this should use the error
+        and adjust the internal weights, while passing the derivative through.
 	</p>
 
 	<p>optionally, Layer defines these (initially empty) functions: <br>
@@ -48,10 +51,10 @@ class Layer
 	virtual void resize(size_t nrIn, size_t nrOut) = 0;
 
 	/** return size of input */
-	virtual size_t nrIn() const = 0;
+    virtual size_t numIn() const = 0;
 
 	/** return size of output */
-	virtual size_t nrOut() const = 0;
+    virtual size_t numOut() const = 0;
 
 	/** clear / randomize weights */
 	virtual void brainwash() = 0;
@@ -86,5 +89,6 @@ class Layer
 
 };
 
+} // namespace MNN
 
 #endif // MNN_LAYER_H_INCLUDED

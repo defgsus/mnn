@@ -32,10 +32,10 @@ class StackSerial : public Layer<Float>
 	virtual void resize(size_t nrIn, size_t nrOut);
 
 	/** return size of input */
-	virtual size_t nrIn() const;
+    virtual size_t numIn() const;
 
 	/** return size of output */
-	virtual size_t nrOut() const;
+    virtual size_t numOut() const;
 
 	/** clear / randomize weights */
 	virtual void brainwash();
