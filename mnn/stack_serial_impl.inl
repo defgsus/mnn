@@ -60,7 +60,7 @@ void MNN_STACKSERIAL::brainwash()
 // ----------- layer interface -----------
 
 MNN_TEMPLATE
-size_t MNN_STACKSERIAL::nrLayer() const
+size_t MNN_STACKSERIAL::numLayer() const
 {
 	return layer_.size();
 }
@@ -76,11 +76,12 @@ MNN_TEMPLATE
 void MNN_STACKSERIAL::resizeBuffers_()
 {
 	{	// clear buffer (completely)
-		std::vector<std::vector<Float> > tmp;
+        std::vector<std::vector<Float>> tmp;
 		tmp.swap( buffer_ );
 	}
 
-	if (layer_.size()<2) return;
+    if (layer_.size()<2)
+        return;
 
 	buffer_.resize(layer_.size()-1);
 
@@ -91,19 +92,19 @@ void MNN_STACKSERIAL::resizeBuffers_()
         if (i>0 && layer_[i]->numIn() != layer_[i-1]->numOut())
             layer_[i]->resize(layer_[i-1]->numOut(), layer_[i]->numOut());
 
-		// alloc imidiate buffer
+        // alloc immediate buffer
         b->resize(layer_[i]->numOut());
 	}
 
-	for (auto b = buffer_.begin(); b != buffer_.end(); ++b)
-		std::cout << "buffer: " << b->size() << "\n";
+//	for (auto b = buffer_.begin(); b != buffer_.end(); ++b)
+//		std::cout << "buffer: " << b->size() << "\n";
 }
 
 
 // ----------- propagation ---------------
 
 MNN_TEMPLATE
-void MNN_STACKSERIAL::fprop(Float * input, Float * output)
+void MNN_STACKSERIAL::fprop(const Float * input, Float * output)
 {
 	if (layer_.empty()) return;
 
@@ -129,9 +130,11 @@ void MNN_STACKSERIAL::fprop(Float * input, Float * output)
 
 
 MNN_TEMPLATE
-void MNN_STACKSERIAL::bprop(Float * error, Float * error_output, Float global_learn_rate)
+void MNN_STACKSERIAL::bprop(const Float * error, Float * error_output,
+                            Float global_learn_rate)
 {
-	if (layer_.empty()) return;
+    if (layer_.empty())
+        return;
 
 	// bprop single layer
 	if (layer_.size()==1)
@@ -141,7 +144,8 @@ void MNN_STACKSERIAL::bprop(Float * error, Float * error_output, Float global_le
 	}
 
 	// bprob last layer
-	layer_[layer_.size()-1]->bprop(error, &buffer_[buffer_.size()-1][0], global_learn_rate);
+    layer_[layer_.size()-1]->bprop(
+                error, &buffer_[buffer_.size()-1][0], global_learn_rate);
 
 	// bprob hidden layers
 	for (size_t i = layer_.size()-2; i > 0; --i)

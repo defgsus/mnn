@@ -9,15 +9,16 @@ QT       += core
 QT       -= gui
 
 TARGET = devnn
-CONFIG   += console
+CONFIG   += console c++11
 CONFIG   -= app_bundle
 
 TEMPLATE = app
 
-QMAKE_CXXFLAGS += --std=c++11
 
 SOURCES += main.cpp \
-    trainposition.cpp
+    trainposition.cpp \
+    mnistset.cpp \
+    trainmnist.cpp
 
 HEADERS += \
     mnn/activation.h  \
@@ -28,4 +29,6 @@ HEADERS += \
     mnn/perceptron_impl.inl  \
     mnn/stack_serial.h  \
     mnn/stack_serial_impl.inl  \
-    trainposition.h
+    trainposition.h \
+    mnistset.h \
+    trainmnist.h

@@ -10,8 +10,9 @@
 #define MNN_PERCEPTRON Perceptron<Float, ActFunc>
 
 MNN_TEMPLATE
-MNN_PERCEPTRON::Perceptron(size_t nrIn, size_t nrOut, Float learnRate)
-	:	learnRate_	(learnRate)
+MNN_PERCEPTRON::Perceptron(size_t nrIn, size_t nrOut, Float learnRate, bool bc)
+    : learnRate_	(learnRate)
+    , biasCell_     (bc)
 {
 	resize(nrIn, nrOut);
 }
@@ -28,15 +29,17 @@ MNN_PERCEPTRON::~Perceptron()
 MNN_TEMPLATE
 void MNN_PERCEPTRON::resize(size_t nrIn, size_t nrOut)
 {
-	input_.resize(nrIn);
+    if (biasCell_)
+        ++nrIn;
+    input_.resize(nrIn);
 	output_.resize(nrOut);
-	weight_.resize(nrIn * nrOut);
+    weight_.resize(nrIn * nrOut);
 }
 
 MNN_TEMPLATE
 size_t MNN_PERCEPTRON::numIn() const
 {
-	return input_.size();
+    return biasCell_? input_.size() - 1 : input_.size();
 }
 
 MNN_TEMPLATE
@@ -55,10 +58,15 @@ void MNN_PERCEPTRON::brainwash()
 	for (auto e = output_.begin(); e != output_.end(); ++e)
 		*e = 0.0;
 
-	if (input_.empty() || output_.empty()) return;
+    if (input_.empty() || output_.empty())
+        return;
+
+    if (biasCell_)
+        input_.back() = 1.;
 
 	// randomize weights (assume normalized states)
-	Float f = 1.0 / sqrt(input_.size());
+    Float f = 1.0 / std::sqrt(input_.size());
+    //Float f = 1.0 / input_.size();
 	for (auto e = weight_.begin(); e != weight_.end(); ++e)
 		*e = rnd(-f, f);
 }
@@ -67,11 +75,15 @@ void MNN_PERCEPTRON::brainwash()
 // ----------- propagation ---------------
 
 MNN_TEMPLATE
-void MNN_PERCEPTRON::fprop(Float * input, Float * output)
+void MNN_PERCEPTRON::fprop(const Float * input, Float * output)
 {
 	// copy to internal data
-	for (auto i = input_.begin(); i != input_.end(); ++i, ++input)
-		*i = *input;
+    if (!biasCell_)
+        for (auto i = input_.begin(); i != input_.end(); ++i, ++input)
+            *i = *input;
+    else
+        for (size_t i=0; i<input_.size(); ++i, ++input)
+            input_[i] = *input;
 
 	// propagate
 	auto w = weight_.begin();
@@ -87,20 +99,21 @@ void MNN_PERCEPTRON::fprop(Float * input, Float * output)
 	}
 
 	// copy to caller
-	std::copy(output_.begin(), output_.end(), output);
+    std::copy(output_.begin(), output_.end(), output);
 }
 
 
 MNN_TEMPLATE
-void MNN_PERCEPTRON::bprop(Float * error, Float * error_output, Float global_learn_rate)
+void MNN_PERCEPTRON::bprop(const Float * error, Float * error_output,
+                           Float global_learn_rate)
 {
 	global_learn_rate *= learnRate_;
 
-	Float * e;
+    const Float * e;
 
 	// pass error through
 	if (error_output)
-	for (size_t i = 0; i<input_.size(); ++i, ++error_output)
+    for (size_t i = 0; i<numIn(); ++i, ++error_output)
 	{
 		Float sum = 0;
 		e = error;
@@ -116,7 +129,7 @@ void MNN_PERCEPTRON::bprop(Float * error, Float * error_output, Float global_lea
 	e = error;
 	for (auto o = output_.begin(); o != output_.end(); ++o, ++e)
 	{
-		Float de = ActFunc::derivative((Float)*e, *o);
+        Float de = ActFunc::derivative(*e, *o);
 
 		for (auto i = input_.begin(); i != input_.end(); ++i, ++w)
 		{
@@ -133,8 +146,9 @@ MNN_TEMPLATE
 void MNN_PERCEPTRON::info(std::ostream &out) const
 {
 	out <<   "name       : " << name()
-		<< "\ninputs     : " << input_.size()
-		<< "\noutputs    : " << output_.size()
+        << "\ninputs     : " << numIn()
+            << (biasCell_ ? " (+1 bias)" : "")
+        << "\noutputs    : " << numOut()
 		<< "\nactivation : " << ActFunc::static_name()
 		<< "\n";
 }

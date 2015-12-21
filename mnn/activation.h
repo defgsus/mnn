@@ -42,10 +42,11 @@ struct Tanh : public Base
 	virtual const char * name() const { return static_name(); }
 
 	template <typename Float>
-	static Float activation(Float in) { return tanh(in); }
+    static Float activation(Float in) { return std::tanh(in); }
 
 	template <typename Float>
-	static Float derivative(Float error, Float state) { return (1.0 - state * state) * error; }
+    static Float derivative(Float error, Float state)
+        { return (Float(1.) - state * state) * error; }
 };
 
 /** classical logistic activation */
@@ -55,10 +56,12 @@ struct Logistic : public Base
 	virtual const char * name() const { return static_name(); }
 
 	template <typename Float>
-	static Float activation(Float in) { return 1.0/(1.0 + exp(-in)); }
+    static Float activation(Float in)
+        { return Float(1.)/(Float(1.) + std::exp(-in)); }
 
 	template <typename Float>
-	static Float derivative(Float error, Float state) { return state * (1.0 - state) * error; }
+    static Float derivative(Float error, Float state)
+        { return state * (Float(1.) - state) * error; }
 };
 
 /** logistic10 activation */
@@ -68,10 +71,12 @@ struct Logistic10 : public Base
 	virtual const char * name() const { return static_name(); }
 
 	template <typename Float>
-	static Float activation(Float in) { return 1.0/(1.0 + exp(10.0 * -in)); }
+    static Float activation(Float in)
+        { return Float(1.)/(Float(1.) + std::exp(Float(10.) * -in)); }
 
 	template <typename Float>
-	static Float derivative(Float error, Float state) { return state * (1.0 - state) * error; }
+    static Float derivative(Float error, Float state)
+        { return state * (Float(1.) - state) * error; }
 };
 
 
@@ -82,10 +87,11 @@ struct Cosine : public Base
 	virtual const char * name() const { return static_name(); }
 
 	template <typename Float>
-	static Float activation(Float in) { return cos(in); }
+    static Float activation(Float in) { return std::cos(in); }
 
 	template <typename Float>
-	static Float derivative(Float error, Float state) { return -sin(state) * error; }
+    static Float derivative(Float error, Float state)
+        { return -std::sin(state) * error; }
 };
 
 /** smooth activation */
@@ -95,10 +101,12 @@ struct Smooth : public Base
 	virtual const char * name() const { return static_name(); }
 
 	template <typename Float>
-	static Float activation(Float in) { return in*in*(3.0-2.0*in); }
+    static Float activation(Float in)
+        { return in*in*(Float(3.) - Float(2.) * in); }
 
 	template <typename Float>
-	static Float derivative(Float error, Float state) { return 6.0*(1.0-state) * error; }
+    static Float derivative(Float error, Float state)
+        { return Float(6.)*(Float(1.)-state) * error; }
 };
 
 /** smooth2 activation */
@@ -108,10 +116,13 @@ struct Smooth2 : public Base
 	virtual const char * name() const { return static_name(); }
 
 	template <typename Float>
-	static Float activation(Float in) { return in*in*in*(6.0*in*in - 15.0*in + 10.0); }
+    static Float activation(Float in)
+        { return in*in*in*(Float(6.)*in*in - Float(15.)*in + Float(10.)); }
 
 	template <typename Float>
-	static Float derivative(Float error, Float state) { return 30.0 * pow(state-1.0, 2.0) * state * state * error; }
+    static Float derivative(Float error, Float state)
+        { return Float(30.) * std::pow(state-Float(1.), Float(2.))
+                            * state * state * error; }
 };
 
 } // namespace Activation

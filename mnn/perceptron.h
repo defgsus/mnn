@@ -22,7 +22,7 @@ class Perceptron : public Layer<Float>
 {
 	public:
 
-    Perceptron(size_t numIn, size_t numOut, Float learnRate = 1);
+    Perceptron(size_t numIn, size_t numOut, Float learnRate = 1, bool biasCell = true);
 
 	virtual ~Perceptron();
 
@@ -42,9 +42,10 @@ class Perceptron : public Layer<Float>
 
 	// ------- propagation -------------------
 
-	virtual void fprop(Float * input, Float * output);
+    virtual void fprop(const Float * input, Float * output) override;
 
-	virtual void bprop(Float * error, Float * error_output = 0, Float global_learn_rate = 1);
+    virtual void bprop(const Float * error, Float * error_output = 0,
+                       Float global_learn_rate = 1) override;
 
 	// ------- info --------------------------
 
@@ -62,6 +63,8 @@ class Perceptron : public Layer<Float>
 		weight_;
 
 	Float learnRate_;
+
+    bool biasCell_;
 };
 
 #include <mnn/perceptron_impl.inl>

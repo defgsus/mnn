@@ -62,10 +62,11 @@ class Layer
 	// ---- propagation -------
 
 	/** forward propagate */
-	virtual void fprop(Float * input, Float * output) = 0;
+    virtual void fprop(const Float * input, Float * output) = 0;
 
 	/** backward propagate the error derivative, and adjust weights */
-	virtual void bprop(Float * error, Float * error_output = 0, Float global_learn_rate = 1) = 0;
+    virtual void bprop(const Float * error, Float * error_output = 0,
+                       Float global_learn_rate = 1) = 0;
 
 	// -------- info ----------
 
@@ -84,8 +85,8 @@ class Layer
 
 	protected:
 
-	/**disable copy*/ Layer& operator=(const Layer&);
-	/**disable copy*/ Layer(const Layer&);
+    /**disable copy*/ Layer& operator=(const Layer&) = delete;
+    /**disable copy*/ Layer(const Layer&) = delete;
 
 };
 

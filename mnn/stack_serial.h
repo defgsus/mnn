@@ -43,16 +43,17 @@ class StackSerial : public Layer<Float>
 	// ------- layer interface ---------------
 
 	/** return nr of layers */
-	virtual size_t nrLayer() const;
+    virtual size_t numLayer() const;
 
 	/** add a new layer. ownership is taken */
 	virtual void add(Layer<Float> * layer);
 
 	// ------- propagation -------------------
 
-	virtual void fprop(Float * input, Float * output);
+    virtual void fprop(const Float * input, Float * output) override;
 
-	virtual void bprop(Float * error, Float * error_output = 0, Float global_learn_rate = 1);
+    virtual void bprop(const Float * error, Float * error_output = 0,
+                       Float global_learn_rate = 1) override;
 
 	// ------- info --------------------------
 

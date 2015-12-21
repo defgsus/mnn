@@ -19,11 +19,11 @@
 
 TrainPosition::TrainPosition()
 {
-    float lr = 0.005;
+    float lr = 0.006;
 
     auto net = new MNN::StackSerial<float>;
-    net->add( new MNN::Perceptron<float, MNN::Activation::Tanh>(entryLength_-1,200, 1*lr) );
-    net->add( new MNN::Perceptron<float, MNN::Activation::Tanh>(200,100, 1*lr) );
+    net->add( new MNN::Perceptron<float, MNN::Activation::Logistic>(entryLength_-1,500, 1*lr) );
+    net->add( new MNN::Perceptron<float, MNN::Activation::Logistic>(500,100, 1*lr) );
     net->add( new MNN::Perceptron<float, MNN::Activation::Linear>(100,1, 1*lr) );
 
     net_ = net;
