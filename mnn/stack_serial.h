@@ -12,8 +12,7 @@
 #include <vector>
 #include <iostream>
 
-#include <mnn/layer.h>
-#include <mnn/function.h>
+#include "layer.h"
 
 namespace MNN {
 
@@ -28,24 +27,25 @@ class StackSerial : public Layer<Float>
 
 	// ----------- nn interface --------------
 
-	/** set input and output size */
-	virtual void resize(size_t nrIn, size_t nrOut);
+    virtual void resize(size_t numIn, size_t numOut) override;
+    virtual void brainwash() override;
 
-	/** return size of input */
-    virtual size_t numIn() const;
+    virtual size_t numIn() const override;
+    virtual size_t numOut() const override;
+    virtual const Float* input() const override
+        { return layer_.empty() ? 0 : layer_.front()->input(); }
+    virtual const Float* output() const override
+        { return layer_.empty() ? 0 : layer_.back()->output(); }
 
-	/** return size of output */
-    virtual size_t numOut() const;
-
-	/** clear / randomize weights */
-	virtual void brainwash();
+    using Layer<Float>::input;
+    using Layer<Float>::output;
 
 	// ------- layer interface ---------------
 
 	/** return nr of layers */
     virtual size_t numLayer() const;
 
-	/** add a new layer. ownership is taken */
+    /** Adds a new layer, ownership is taken */
 	virtual void add(Layer<Float> * layer);
 
 	// ------- propagation -------------------
@@ -57,14 +57,17 @@ class StackSerial : public Layer<Float>
 
 	// ------- info --------------------------
 
-	virtual const char * name() const { return "StackSerial"; }
+    virtual const char * id() const override { return "StackSerial"; }
+    virtual const char * name() const override { return "StackSerial"; }
+    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void dump(std::ostream &out = std::cout) const override;
 
-	virtual void info(std::ostream &out = std::cout) const;
+    // ------------- io ---------------
 
-	virtual void dump(std::ostream &out = std::cout) const;
+    virtual void serialize(std::ostream&) const override;
+    virtual void deserialize(std::istream&) override;
 
-
-	protected:
+protected:
 
 	void resizeBuffers_();
 
@@ -75,7 +78,7 @@ class StackSerial : public Layer<Float>
 	std::vector<Layer<Float>*> layer_;
 };
 
-#include <mnn/stack_serial_impl.inl>
+#include "stack_serial_impl.inl"
 
 } // namespace MNN
 

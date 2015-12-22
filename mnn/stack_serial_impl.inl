@@ -19,8 +19,51 @@ MNN_TEMPLATE
 MNN_STACKSERIAL::~StackSerial()
 {
 	// free layers
-	for (auto l = layer_.begin(); l != layer_.end(); ++l)
-		delete *l;
+    for (auto l : layer_)
+        delete l;
+}
+
+
+// ---------------- io -------------------
+
+MNN_TEMPLATE
+void MNN_STACKSERIAL::serialize(std::ostream& s) const
+{
+    s << name();
+    // version
+    s << " " << 1;
+    // dimension
+    s << " " << numLayer();
+    // each layer
+    for (auto l : layer_)
+        l->serialize(s);
+}
+
+MNN_TEMPLATE
+void MNN_STACKSERIAL::deserialize(std::istream& s)
+{
+    std::string str;
+    s >> str;
+    if (str != id())
+        MNN_EXCEPTION("Expected '" << id()
+                      << "' in stream, found '" << str << "'");
+    // version
+    int ver;
+    s >> ver;
+    if (ver > 1)
+        MNN_EXCEPTION("Wrong version in " << name());
+
+    // dimension
+    size_t numLay;
+    s >> numLay;
+    if (numLay != numLayer())
+        MNN_EXCEPTION("Number of layers does not match in " << name()
+                      << ", expected " << numLayer() << ", found " << numLay);
+    // each layer
+    for (auto l : layer_)
+        l->deserialize(s);
+
+    resizeBuffers_();
 }
 
 
@@ -46,7 +89,7 @@ size_t MNN_STACKSERIAL::numIn() const
 MNN_TEMPLATE
 size_t MNN_STACKSERIAL::numOut() const
 {
-    return (layer_.empty())? 0 : layer_[layer_.size()-1]->numIn();
+    return (layer_.empty())? 0 : layer_[layer_.size()-1]->numOut();
 }
 
 

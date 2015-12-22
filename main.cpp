@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 
 #include "mnn/mnn.h"
 //#include "trainposition.h"
@@ -257,6 +258,19 @@ void maint()
 }
 
 template <typename F>
+void printState(const F* state, size_t width, size_t height, std::ostream& out = std::cout)
+{
+    for (size_t j=0; j<height; ++j)
+    {
+        for (size_t i=0; i<width; ++i, ++state)
+        {
+            out << *state << " ";
+        }
+        out << std::endl;
+    }
+}
+
+template <typename F>
 void printStateAscii(const F* state, size_t width, size_t height, std::ostream& out = std::cout)
 {
     for (size_t j=0; j<height; ++j)
@@ -269,6 +283,52 @@ void printStateAscii(const F* state, size_t width, size_t height, std::ostream& 
     }
 }
 
+
+
+
+template <typename Net>
+void evaluateRbm(Net rbm, const MnistSet& set)
+{
+    struct Sample
+    {
+        size_t index;
+        float err_cd, err_rec;
+        std::string img;
+    };
+
+    std::vector<Sample> samples;
+    for (size_t i = 0; i < set.numSamples(); ++i)
+    {
+        Sample s;
+        s.index = i;
+        s.err_cd = rbm->cd(set.image(i), 3, 0.);
+        s.err_rec = rbm->compareInput(set.image(i));
+        std::stringstream strs;
+        printStateAscii(rbm->input(), set.width(), set.height(), strs);
+        s.img = strs.str();
+
+        samples.push_back(s);
+    }
+
+    std::sort(samples.begin(), samples.end(),
+              [](const Sample& l, const Sample& r)
+    {
+        return l.err_rec < r.err_rec;
+        //return l.err_cd < r.err_cd;
+    });
+
+    for (const auto& s : samples)
+    {
+        std::cout << "image #" << s.index
+                  << ", cd " << s.err_cd
+                  << ", rec " << s.err_rec
+                  << "\n" << s.img;
+        //printState(rbm->output(), rbm->numOut(), 1);
+        std::cout << std::endl;
+
+        std::cin.get();
+    }
+}
 
 template <typename F>
 void testRbm()
@@ -289,7 +349,7 @@ void testRbm()
         f = MNN::rnd(F(0), F(1));
 #endif
 
-    auto rbm = new MNN::Rbm<F, MNN::Activation::Logistic>(numIn, 100, 1);
+    auto rbm = new MNN::Rbm<F, MNN::Activation::Logistic>(numIn, 20, 1);
     rbm->brainwash();
     rbm->setMomentum(0.5);
 
@@ -302,13 +362,17 @@ void testRbm()
     rbm->resize(1, 1);
     */
 #if 1
+    // load previous
     {
         std::fstream fs;
-        fs.open("mnist_rbm_100h.txt", std::ios_base::in);
+        fs.open("mnist_rbm_20h.txt", std::ios_base::in);
         rbm->deserialize(fs);
         fs.close();
-        rbm->dump();
+        //rbm->dump();
     }
+
+    evaluateRbm(rbm, set);
+    return;
 #endif
 
     rbm->info();
@@ -335,7 +399,7 @@ void testRbm()
 #ifdef MNIST
         size_t idx = rand() % set.numSamples();
         //idx = idx % 10;
-        err = rbm->cd(set.image(idx), 3, 0.01);
+        err = rbm->cd(set.image(idx), 5, 0.01);
         err = rbm->compareInput(set.image(idx));
 #else
         err = rbm->cd(&input[0], 2, 0.1);
@@ -363,7 +427,7 @@ void testRbm()
 #if 0
     {
         std::fstream fs;
-        fs.open("mnist_rbm_100h.txt", std::ios_base::out);
+        fs.open("mnist_rbm_20h.txt", std::ios_base::out);
         rbm->serialize(fs);
         fs.close();
     }
@@ -380,8 +444,8 @@ int main()
     //TrainPosition t; t.exec(); return 0;
     //TrainMnist t; t.exec(); return 0;
 
-    //maint<double>();
-    testRbm<float>();
+    maint<double>();
+    //testRbm<float>();
 
 	return 0;
 }

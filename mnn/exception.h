@@ -12,19 +12,31 @@
 #define MNN_EXCEPTION_H
 
 #include <exception>
+#include <string>
+#include <sstream>
 
 namespace MNN {
 
-#define MNN_EXCEPTION(text__) throw ::MNN::Exception(text__)
+#define MNN_EXCEPTION(text__) \
+    throw ::MNN::Exception() << text__
 
 class Exception
 {
-    const char * what_;
+    std::string what_;
 public:
-  Exception(const char* what) noexcept : what_(what) { }
-  virtual ~Exception() noexcept { }
+    Exception() noexcept { }
+    virtual ~Exception() noexcept { }
 
-  virtual const char* what() const noexcept { return what_; }
+    virtual const char* what() const noexcept { return what_.c_str(); }
+
+    template <typename T>
+    Exception& operator << (T v)
+    {
+        std::stringstream s;
+        s << v;
+        what_ += s.str();
+        return *this;
+    }
 };
 
 } // namespace MNN

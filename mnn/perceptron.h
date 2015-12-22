@@ -12,8 +12,7 @@
 #include <vector>
 #include <iostream>
 
-#include <mnn/layer.h>
-#include <mnn/function.h>
+#include "layer.h"
 
 namespace MNN {
 
@@ -31,17 +30,16 @@ class Perceptron : public Layer<Float>
 
 	// ----------- nn interface --------------
 
-	/** set input and output size */
-    virtual void resize(size_t numIn, size_t numOut);
+    virtual void resize(size_t numIn, size_t numOut) override;
+    virtual void brainwash() override;
 
-	/** return size of input */
-    virtual size_t numIn() const;
+    virtual size_t numIn() const override;
+    virtual size_t numOut() const override;
+    virtual const Float* input() const override { return &input_[0]; }
+    virtual const Float* output() const override { return &output_[0]; }
 
-	/** return size of output */
-    virtual size_t numOut() const;
-
-	/** clear / randomize weights */
-	virtual void brainwash();
+    using Layer<Float>::input;
+    using Layer<Float>::output;
 
 	// ------- propagation -------------------
 
@@ -52,13 +50,17 @@ class Perceptron : public Layer<Float>
 
 	// ------- info --------------------------
 
-	virtual const char * name() const { return "Perceptron"; }
+    virtual const char * id() const override { return "Perceptron"; }
+    virtual const char * name() const override { return "Perceptron"; }
+    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void dump(std::ostream &out = std::cout) const override;
 
-	virtual void info(std::ostream &out = std::cout) const;
+    // ------------- io ---------------
 
-	virtual void dump(std::ostream &out = std::cout) const;
+    virtual void serialize(std::ostream&) const override;
+    virtual void deserialize(std::istream&) override;
 
-	protected:
+protected:
 
 	std::vector<Float>
 		input_,
@@ -72,7 +74,7 @@ class Perceptron : public Layer<Float>
     bool biasCell_;
 };
 
-#include <mnn/perceptron_impl.inl>
+#include "perceptron_impl.inl"
 
 } // namespace MNN
 

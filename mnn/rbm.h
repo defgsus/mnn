@@ -15,9 +15,7 @@
 #include <vector>
 #include <iostream>
 
-#include "mnn/layer.h"
-#include "mnn/function.h"
-#include "mnn/exception.h"
+#include "layer.h"
 
 namespace MNN {
 
@@ -35,20 +33,17 @@ class Rbm : public Layer<Float>
 
     // ----------- nn interface --------------
 
-    /** set input and output size */
-    virtual void resize(size_t numIn, size_t numOut);
+    virtual void resize(size_t numIn, size_t numOut) override;
+    virtual void brainwash() override;
 
-    /** return size of input */
-    virtual size_t numIn() const;
+    virtual size_t numIn() const override;
+    virtual size_t numOut() const override;
+    virtual const Float* input() const override { return &input_[0]; }
+    virtual const Float* output() const override { return &output_[0]; }
 
-    /** return size of output */
-    virtual size_t numOut() const;
+    using Layer<Float>::input;
+    using Layer<Float>::output;
 
-    /** clear / randomize weights */
-    virtual void brainwash();
-
-    virtual const Float* input() const { return &input_[0]; }
-    virtual const Float* output() const { return &output_[0]; }
 
     // ------- propagation -------------------
 
@@ -67,18 +62,17 @@ class Rbm : public Layer<Float>
 
     // ------- info --------------------------
 
-    virtual const char * name() const { return "RBM"; }
-
-    virtual void info(std::ostream &out = std::cout) const;
-
-    virtual void dump(std::ostream &out = std::cout) const;
+    virtual const char * id() const override { return "RBM"; }
+    virtual const char * name() const override { return "RBM"; }
+    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void dump(std::ostream &out = std::cout) const override;
 
     Float getWeightAverage() const;
 
     // ------------- io ---------------
 
-    virtual void serialize(std::ostream&) const;
-    virtual void deserialize(std::istream&);
+    virtual void serialize(std::ostream&) const override;
+    virtual void deserialize(std::istream&) override;
 
 protected:
 
@@ -115,7 +109,7 @@ protected:
     bool biasCell_;
 };
 
-#include <mnn/rbm_impl.inl>
+#include "rbm_impl.inl"
 
 } // namespace MNN
 

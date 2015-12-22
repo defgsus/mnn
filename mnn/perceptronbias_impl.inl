@@ -26,6 +26,54 @@ MNN_PERCEPTRONBIAS::~PerceptronBias()
 
 }
 
+// ---------------- io -------------------
+
+MNN_TEMPLATE
+void MNN_PERCEPTRONBIAS::serialize(std::ostream& s) const
+{
+    s << name();
+    // version
+    s << " " << 1;
+    // settings
+    s << " " << learnRate_ << " " << momentum_;
+    // dimension
+    s << " " << numIn() << " " << numOut();
+    // bias
+    for (auto b : bias_)
+        s << " " << b;
+    // weights
+    for (auto w : weight_)
+        s << " " << w;
+}
+
+MNN_TEMPLATE
+void MNN_PERCEPTRONBIAS::deserialize(std::istream& s)
+{
+    std::string str;
+    s >> str;
+    if (str != id())
+        MNN_EXCEPTION("Expected '" << id()
+                      << "' in stream, found '" << str << "'");
+    // version
+    int ver;
+    s >> ver;
+    if (ver > 1)
+        MNN_EXCEPTION("Wrong version in " << name());
+
+    // settings
+    s >> learnRate_ >> momentum_;
+    // dimension
+    size_t numIn, numOut;
+    s >> numIn >> numOut;
+    resize(numIn, numOut);
+    // bias
+    for (auto& b : bias_)
+        s >> b;
+    // weights
+    for (auto& w : weight_)
+        s >> w;
+}
+
 
 // ----------- nn interface --------------
 

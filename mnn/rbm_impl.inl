@@ -48,14 +48,14 @@ void MNN_RBM::deserialize(std::istream& s)
 {
     std::string str;
     s >> str;
-    if (str != name())
-        MNN_EXCEPTION("No RBM in stream");
-
+    if (str != id())
+        MNN_EXCEPTION("Expected '" << id()
+                      << "' in stream, found '" << str << "'");
     // version
     int ver;
     s >> ver;
     if (ver > 1)
-        MNN_EXCEPTION("Wrong version");
+        MNN_EXCEPTION("Wrong version in " << name());
 
     // settings
     s >> learnRate_ >> momentum_ >> biasCell_;
@@ -237,12 +237,16 @@ Float MNN_RBM::trainCorrelation_(Float learn_rate)
     {
         const Float de = *cd - *cm;
         err_sum += std::abs(de);
-        *pd = momentum_ * *pd
-            + learn_rate * de;
-        *w += *pd;
 
-        //if (std::abs(*w) > 5.)
-        //    *w *= 0.9999;
+        if (learn_rate > 0.)
+        {
+            *pd = momentum_ * *pd
+                + learn_rate * de;
+            *w += *pd;
+
+            //if (std::abs(*w) > 5.)
+            //    *w *= 0.9999;
+        }
     }
 
     return err_sum;

@@ -8,6 +8,8 @@
     <p>created 12/21/2015</p>
 */
 
+#include <fstream>
+
 #include "trainmnist.h"
 #include "mnn/mnn.h"
 #include "mnistset.h"
@@ -22,7 +24,7 @@ struct TrainMnist::Private
     MnistSet trainSet, testSet;
     MNN::StackSerial<Float> net;
     std::vector<Float> bufExp, bufOut;
-    Float error, avError;
+    Float error, error_sum;
 };
 
 TrainMnist::TrainMnist()
@@ -63,25 +65,42 @@ void TrainMnist::Private::exec()
     bufExp.resize(10);
     bufOut.resize(10);
 
-    net.add( new MNN::Perceptron<Float, MNN::Activation::Logistic>(numIn, 800) );
-    net.add( new MNN::Perceptron<Float, MNN::Activation::Logistic>(800, 10) );
+    auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 100);
+    l1->setMomentum(.1);
+    auto l2 = new MNN::Perceptron<Float, MNN::Activation::Logistic>(100, 10);
+    l2->setMomentum(.9);
+    net.add( l1 );
+    net.add( l2 );
 
     net.brainwash();
+
+#if 1
+    // load previous
+    {
+        std::fstream fs;
+        fs.open("mnist_rbm_100h.txt", std::ios_base::in);
+        l1->deserialize(fs);
+        fs.close();
+        //rbm->dump();
+    }
+#endif
+
 
     net.info();
 
     // --------- training ---------
 
-    avError = 0.;
+    error_sum = 0.;
 
     for (int i=0; i<1000000; ++i)
     {
         trainStep();
 
-        if (i % 100 == 0)
+        if (i % 1000 == 0)
         {
             std::cout << "epoch " << i
                       << ", error " << error
+                      << ", averror " << (error_sum / (i+1))
                       << std::endl;
         }
     }
@@ -111,6 +130,25 @@ void TrainMnist::Private::trainStep()
         error += std::abs(bufOut[i]);
     }
     //std::cout << std::endl;
+
+#if 1
+    // get error from actual label number
+    int answer = -1;
+    Float ma = -100.;
+    for (size_t i=0; i<net.numOut(); ++i)
+    {
+        Float o = net.output(i);
+        if (o > ma)
+        {
+            ma = o;
+            answer = i;
+        }
+    }
+
+    error = answer < 0 ? 11. : std::abs(Float(answer - label));
+#endif
+
+    error_sum += error;
 
     net.bprop(&bufOut[0], NULL, 0.9);
 }

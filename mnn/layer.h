@@ -9,6 +9,10 @@
 #define MNN_LAYER_H_INCLUDED
 
 #include <iostream>
+#include <fstream>
+
+#include "function.h"
+#include "exception.h"
 
 namespace MNN {
 
@@ -50,14 +54,24 @@ class Layer
 	/** set input and output size */
 	virtual void resize(size_t nrIn, size_t nrOut) = 0;
 
-	/** return size of input */
-    virtual size_t numIn() const = 0;
-
-	/** return size of output */
-    virtual size_t numOut() const = 0;
-
 	/** clear / randomize weights */
 	virtual void brainwash() = 0;
+
+    // -------- data access ---------------
+
+    /** return size of input */
+    virtual size_t numIn() const = 0;
+
+    /** return size of output */
+    virtual size_t numOut() const = 0;
+
+    /** Returns pointer to continous input states */
+    virtual const Float* input() const = 0;
+    /** Returns pointer to continous output states */
+    virtual const Float* output() const = 0;
+
+    Float input(size_t index) const { return input()[index]; }
+    Float output(size_t index) const { return output()[index]; }
 
 	// ---- propagation -------
 
@@ -70,10 +84,11 @@ class Layer
 
 	// -------- info ----------
 
-	virtual const char * name() const = 0;
+    /** Return a persistent identifier for the layer type */
+    virtual const char * id() const = 0;
 
-	/** should return error or free energy of the underlying system */
-	//virtual Float energy() { return 0.0; }
+    /** Return a nice name for the layer type */
+    virtual const char * name() const = 0;
 
 	/** print an overview of the network */
 	virtual void info(std::ostream &out = std::cout) const = 0;
@@ -83,8 +98,20 @@ class Layer
 
     // ------------- io ---------------
 
-    //virtual void serialize(std::ostream&) const = 0;
-    //virtual void deserialize(std::istream&) = 0;
+    /** Saves the layer to a file using serialize(std::ostream&).
+        @throws MNN::Exception */
+    void saveAscii(const std::string& filename) const;
+
+    /** Loads the layer from a file using deserialize(std::ostream&).
+        @throws MNN::Exception */
+    void loadAscii(const std::string& filename);
+
+    /** Serializes the layer to an ASCII stream. */
+    virtual void serialize(std::ostream&) const = 0;
+
+    /** Deserializes the layer from an ASCII stream.
+        @throws MNN::Exception on error */
+    virtual void deserialize(std::istream&) = 0;
 
 	// ------ protected space ----------------
 
@@ -94,6 +121,31 @@ class Layer
     /**disable copy*/ Layer(const Layer&) = delete;
 
 };
+
+// ------------------------ impl ---------------------------
+
+template <typename Float>
+void Layer<Float>::saveAscii(const std::string& filename) const
+{
+    std::fstream fs;
+    fs.open(filename, std::ios_base::out);
+    if (!fs.is_open())
+        MNN_EXCEPTION("Could not open file for writing '" << filename << "'");
+    serialize(fs);
+    fs.close();
+}
+
+
+template <typename Float>
+void Layer<Float>::loadAscii(const std::string& filename)
+{
+    std::fstream fs;
+    fs.open(filename, std::ios_base::in);
+    if (!fs.is_open())
+        MNN_EXCEPTION("Could not open file for reading '" << filename << "'");
+    deserialize(fs);
+    fs.close();
+}
 
 } // namespace MNN
 
