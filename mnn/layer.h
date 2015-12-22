@@ -1,9 +1,10 @@
-/**	@file
+/**	@file layer.h
 
 	@brief Layer base abstract
 
 	@author def.gsus-
 	@version 2012/10/15 started
+    @version 2015/12/21 started major revision
 */
 #ifndef MNN_LAYER_H_INCLUDED
 #define MNN_LAYER_H_INCLUDED
@@ -18,27 +19,34 @@ namespace MNN {
 
 /** NN-Layer base class (abstract).
 
-	<p>a layer is at it's basic level a set of inputs and outputs, which are
+    <p>A layer is at it's basic level a set of inputs and outputs, which are
 	in turn arrays of floats of probably different lengths.</p>
 
-	<p>internally, layers can be nodes, delaybuffers or whatever, or simply some
+    <p>Internally, layers can be nodes, delaybuffers or whatever, or simply some
 	function of the input, in which case a Layer isn't even a layer in the
 	neuronal network sense.</p>
 
-    <p>there are a few must-overrides, namely:
+    <p>There are a few must-overrides, namely:
     @li resize(), which should set or reset both lengths, of input and output arrays.
     @li nrIn() and nrOut(), to return the lengths.
+    @li input() and output(), to return pointers to the arrays
     @li brainwash(), to reset the weights, coefficients or whathaveyou.
     @li fprop(), this should propagte an array of Float from the input to the output.
     @li bprop(), this should at least propagate the output back to the input.
         as with back-propagation kind of nets, this should use the error
         and adjust the internal weights, while passing the derivative through.
+    @li id() and name(), to help identify derived classes
+    @li info(), to print a human-readable overview over the settings.
+    @li dump(), to print (possibly much) internal data to some std::ostream.
+    @li serialize() and deserialize(), to save and load from ascii data
 	</p>
 
-	<p>optionally, Layer defines these (initially empty) functions: <br>
-	- info(), to print a human-readable overview over the internal data.
-	- dump(), to print (possibly much) internal data to some std::ostream.
-    - energy(), to return a float representing the error or free energy of the system.
+    <p>Each derived class should be copyable
+    with operator= and the copy constructor</p>
+
+    <p>The (de)serialization from/to text is choosen so that
+    different Float template parameter or endianess do not
+    cause problems for file persistence.</p>
 
  */
 template <typename Float>
@@ -51,34 +59,41 @@ class Layer
 
 	// ----------- nn interface --------------
 
-	/** set input and output size */
+    /** Set input and output size */
 	virtual void resize(size_t nrIn, size_t nrOut) = 0;
 
-	/** clear / randomize weights */
+    /** Clear states / randomize weights */
 	virtual void brainwash() = 0;
 
     // -------- data access ---------------
 
-    /** return size of input */
+    /** Return size of input */
     virtual size_t numIn() const = 0;
 
-    /** return size of output */
+    /** Return size of output */
     virtual size_t numOut() const = 0;
 
-    /** Returns pointer to continous input states */
+    /** Return pointer to continous input states */
     virtual const Float* input() const = 0;
-    /** Returns pointer to continous output states */
+    /** Return pointer to continous output states */
     virtual const Float* output() const = 0;
 
+    /** Wrapper around input(void) */
     Float input(size_t index) const { return input()[index]; }
+    /** Wrapper around output(void) */
     Float output(size_t index) const { return output()[index]; }
 
 	// ---- propagation -------
 
-	/** forward propagate */
+    /** Forward propagate.
+        Transmit the data in @p input to @p output. */
     virtual void fprop(const Float * input, Float * output) = 0;
 
-	/** backward propagate the error derivative, and adjust weights */
+    /** Backward propagate the error derivative, and adjust weights.
+        Transmit data in @p error to @p error_output, if not NULL.
+        Perform weight update if @p global_learn_rate != 0.
+        The given learn rate is multiplied with any learnrate that might
+        be set internally. */
     virtual void bprop(const Float * error, Float * error_output = 0,
                        Float global_learn_rate = 1) = 0;
 
@@ -90,42 +105,38 @@ class Layer
     /** Return a nice name for the layer type */
     virtual const char * name() const = 0;
 
-	/** print an overview of the network */
+    /** Print an overview of the network */
 	virtual void info(std::ostream &out = std::cout) const = 0;
 
-	/** print (complete) internal data */
+    /** Print (complete) internal data */
 	virtual void dump(std::ostream &out = std::cout) const = 0;
 
     // ------------- io ---------------
 
     /** Saves the layer to a file using serialize(std::ostream&).
         @throws MNN::Exception */
-    void saveAscii(const std::string& filename) const;
+    void saveTextFile(const std::string& filename) const;
 
     /** Loads the layer from a file using deserialize(std::ostream&).
         @throws MNN::Exception */
-    void loadAscii(const std::string& filename);
+    void loadTextFile(const std::string& filename);
 
-    /** Serializes the layer to an ASCII stream. */
+    /** Serialize the layer to an ASCII stream.
+        The serialized data should be everything that is needed to
+        recreate the layer, e.g. number of inputs/outputs, learnrate,
+        momentum, etc. and the weights. */
     virtual void serialize(std::ostream&) const = 0;
 
-    /** Deserializes the layer from an ASCII stream.
+    /** Deserialize the layer from an ASCII stream.
         @throws MNN::Exception on error */
     virtual void deserialize(std::istream&) = 0;
-
-	// ------ protected space ----------------
-
-	protected:
-
-    /**disable copy*/ Layer& operator=(const Layer&) = delete;
-    /**disable copy*/ Layer(const Layer&) = delete;
 
 };
 
 // ------------------------ impl ---------------------------
 
 template <typename Float>
-void Layer<Float>::saveAscii(const std::string& filename) const
+void Layer<Float>::saveTextFile(const std::string& filename) const
 {
     std::fstream fs;
     fs.open(filename, std::ios_base::out);
@@ -137,7 +148,7 @@ void Layer<Float>::saveAscii(const std::string& filename) const
 
 
 template <typename Float>
-void Layer<Float>::loadAscii(const std::string& filename)
+void Layer<Float>::loadTextFile(const std::string& filename)
 {
     std::fstream fs;
     fs.open(filename, std::ios_base::in);

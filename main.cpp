@@ -13,7 +13,7 @@
 /** Brainwash and train a network with @p nrSamples of
     @p nrIn floats each and @p nrSamples expected results.
     Returns average error over each input sample
-    and number of epochs */
+    and number of epochs until average error fell below 0.01 */
 template <typename Float, class Net>
 std::pair<Float, size_t>
       simple_test(Net& net, size_t nrIn, size_t nrSamples,
@@ -28,7 +28,7 @@ std::pair<Float, size_t>
     {
         net.info();
         net.dump();
-        std::cout << "training simple pattern with "<<nrIn<<" inputs...\n";
+        std::cout << "training some pattern with " << nrIn << " inputs...\n";
     }
 
 	// stochastic gradient descent
@@ -353,23 +353,10 @@ void testRbm()
     rbm->brainwash();
     rbm->setMomentum(0.5);
 
-    /*
-    std::fstream fs;
-    fs.open("rbm.txt", std::ios_base::out);
-    rbm->serialize(fs);
-    fs.close();
-
-    rbm->resize(1, 1);
-    */
-#if 1
+#if 0
     // load previous
-    {
-        std::fstream fs;
-        fs.open("mnist_rbm_20h.txt", std::ios_base::in);
-        rbm->deserialize(fs);
-        fs.close();
-        //rbm->dump();
-    }
+    rbm->loadTextFile("mnist_rbm_20h.txt");
+    //rbm->dump();
 
     evaluateRbm(rbm, set);
     return;
@@ -425,12 +412,7 @@ void testRbm()
     }
 
 #if 0
-    {
-        std::fstream fs;
-        fs.open("mnist_rbm_20h.txt", std::ios_base::out);
-        rbm->serialize(fs);
-        fs.close();
-    }
+    rbm->saveTextFile("mnist_rbm_20h.txt");
 #endif
 
 }

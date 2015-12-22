@@ -8,8 +8,8 @@
     <p>created 12/22/2015</p>
 */
 
-#ifndef MNN_EXCEPTION_H
-#define MNN_EXCEPTION_H
+#ifndef MNN_EXCEPTION_H_INCLUDED
+#define MNN_EXCEPTION_H_INCLUDED
 
 #include <exception>
 #include <string>
@@ -20,7 +20,9 @@ namespace MNN {
 #define MNN_EXCEPTION(text__) \
     throw ::MNN::Exception() << text__
 
-class Exception
+/** Basic exception for all MNN classes.
+    With stringstream support */
+class Exception : public std::exception
 {
     std::string what_;
 public:
@@ -30,7 +32,7 @@ public:
     virtual const char* what() const noexcept { return what_.c_str(); }
 
     template <typename T>
-    Exception& operator << (T v)
+    Exception& operator << (T v) noexcept
     {
         std::stringstream s;
         s << v;
@@ -41,5 +43,5 @@ public:
 
 } // namespace MNN
 
-#endif // MNN_EXCEPTION_H
+#endif // MNN_EXCEPTION_H_INCLUDED
 

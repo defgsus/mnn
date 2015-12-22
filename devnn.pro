@@ -15,7 +15,8 @@ CONFIG   -= app_bundle
 TEMPLATE = app
 
 
-SOURCES += main.cpp \
+SOURCES += \
+    main.cpp \
     trainposition.cpp \
     mnistset.cpp \
     trainmnist.cpp \
@@ -25,15 +26,19 @@ SOURCES += main.cpp \
     mnn/rbm_impl.inl
 
 HEADERS += \
+    trainposition.h \
+    trainmnist.h \
     mnn/activation.h  \
     mnn/function.h  \
     mnn/layer.h  \
     mnn/mnn.h  \
     mnn/perceptron.h  \
     mnn/stack_serial.h  \
-    trainposition.h \
     mnistset.h \
-    trainmnist.h \
     mnn/perceptronbias.h \
     mnn/rbm.h \
     mnn/exception.h
+
+OTHER_FILES += \
+    .gitignore \
+    README.md
