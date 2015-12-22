@@ -1,4 +1,4 @@
-/**	@file
+/**	@file perceptron.h
 
 	@brief Perceptron header
 
@@ -25,6 +25,9 @@ class Perceptron : public Layer<Float>
     Perceptron(size_t numIn, size_t numOut, Float learnRate = 1, bool biasCell = true);
 
 	virtual ~Perceptron();
+
+    Float momentum() const { return momentum_; }
+    void setMomentum(Float m) { momentum_ = m; }
 
 	// ----------- nn interface --------------
 
@@ -60,9 +63,11 @@ class Perceptron : public Layer<Float>
 	std::vector<Float>
 		input_,
 		output_,
-		weight_;
+        weight_,
+        prevDelta_;
 
-	Float learnRate_;
+    Float learnRate_,
+          momentum_;
 
     bool biasCell_;
 };

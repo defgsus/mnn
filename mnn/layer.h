@@ -81,6 +81,11 @@ class Layer
 	/** print (complete) internal data */
 	virtual void dump(std::ostream &out = std::cout) const = 0;
 
+    // ------------- io ---------------
+
+    //virtual void serialize(std::ostream&) const = 0;
+    //virtual void deserialize(std::istream&) = 0;
+
 	// ------ protected space ----------------
 
 	protected:

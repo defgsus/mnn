@@ -1,4 +1,4 @@
-/**	@file
+/**	@file perceptron_impl.inl
 
 	@brief Perceptron implementation
 
@@ -12,6 +12,7 @@
 MNN_TEMPLATE
 MNN_PERCEPTRON::Perceptron(size_t nrIn, size_t nrOut, Float learnRate, bool bc)
     : learnRate_	(learnRate)
+    , momentum_     (.1)
     , biasCell_     (bc)
 {
 	resize(nrIn, nrOut);
@@ -34,6 +35,7 @@ void MNN_PERCEPTRON::resize(size_t nrIn, size_t nrOut)
     input_.resize(nrIn);
 	output_.resize(nrOut);
     weight_.resize(nrIn * nrOut);
+    prevDelta_.resize(nrIn * nrOut);
 }
 
 MNN_TEMPLATE
@@ -69,6 +71,10 @@ void MNN_PERCEPTRON::brainwash()
     //Float f = 1.0 / input_.size();
 	for (auto e = weight_.begin(); e != weight_.end(); ++e)
 		*e = rnd(-f, f);
+
+    // reset momentum
+    for (auto& f : prevDelta_)
+        f = 0.;
 }
 
 
@@ -131,9 +137,12 @@ void MNN_PERCEPTRON::bprop(const Float * error, Float * error_output,
 	{
         Float de = ActFunc::derivative(*e, *o);
 
-		for (auto i = input_.begin(); i != input_.end(); ++i, ++w)
+        Float* pd = &prevDelta_[0];
+        for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd)
 		{
-			*w += learnRate_ * de * *i;
+            *pd = momentum_ * *pd
+                + global_learn_rate * de * *i;
+            *w += *pd;
 		}
 
 	}
@@ -146,6 +155,8 @@ MNN_TEMPLATE
 void MNN_PERCEPTRON::info(std::ostream &out) const
 {
 	out <<   "name       : " << name()
+        << "\nlearnrate  : " << learnRate_
+        << "\nmomentum   : " << momentum_
         << "\ninputs     : " << numIn()
             << (biasCell_ ? " (+1 bias)" : "")
         << "\noutputs    : " << numOut()

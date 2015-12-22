@@ -1,8 +1,13 @@
 #include <iostream>
 #include <algorithm>
+#include <iomanip>
+#include <fstream>
+
 #include "mnn/mnn.h"
 //#include "trainposition.h"
 #include "trainmnist.h"
+#include "mnistset.h"
+
 
 /** Brainwash and train a network with @p nrSamples of
     @p nrIn floats each and @p nrSamples expected results.
@@ -81,7 +86,7 @@ void simple_test_mean(Net& net, size_t nrIn, size_t nrSamples,
 {
     auto tup = simple_test(net, nrIn, nrSamples, input, result),
          av = tup, mi = tup, ma = tup;
-    int num = 50;
+    int num = 300;
     std::cout << "testing for " << num << " runs" << std::endl;
     for (int i = 0; i < num; ++i)
     {
@@ -235,20 +240,148 @@ void maint()
     //MNN::Perceptron<float, MNN::Activation::Linear> net;
 
     MNN::StackSerial<F> net;
-    net.add( new MNN::Perceptron<F, MNN::Activation::Tanh>(10,10, 1) );
-    net.add( new MNN::Perceptron<F, MNN::Activation::Logistic>(10,10, 1) );
-    net.add( new MNN::Perceptron<F, MNN::Activation::Linear>(10,10, 0.1) );
+    auto l1 = new MNN::Perceptron<F, MNN::Activation::Tanh>(10,10, 1);
+    auto l2 = new MNN::Perceptron<F, MNN::Activation::Logistic>(10,10, 1);
+    auto l3 = new MNN::Perceptron<F, MNN::Activation::Linear>(10,10, 0.1);
+
+    l1->setMomentum(.5);
+    //l1->setLearnRateBias(0.01);
+    l2->setMomentum(.5);
+    l3->setMomentum(.5);
+
+    net.add(l1);
+    net.add(l2);
+    net.add(l3);
 
     test_xor_pattern<F>(net);
 }
+
+template <typename F>
+void printStateAscii(const F* state, size_t width, size_t height, std::ostream& out = std::cout)
+{
+    for (size_t j=0; j<height; ++j)
+    {
+        for (size_t i=0; i<width; ++i, ++state)
+        {
+            out << ( *state > .7 ? '#' : *state > .35 ? '*' : '.' );
+        }
+        out << std::endl;
+    }
+}
+
+
+template <typename F>
+void testRbm()
+{
+#define MNIST
+
+#ifdef MNIST
+    MnistSet set;
+    set.load("/home/defgsus/prog/DATA/mnist/t10k-labels.idx1-ubyte",
+             "/home/defgsus/prog/DATA/mnist/t10k-images.idx3-ubyte");
+    size_t numIn = set.width() * set.height();
+
+//    printStateAscii(set.image(0), set.width(), set.height());
+#else
+    size_t numIn = 10;
+    std::vector<F> input(numIn);
+    for (auto& f : input)
+        f = MNN::rnd(F(0), F(1));
+#endif
+
+    auto rbm = new MNN::Rbm<F, MNN::Activation::Logistic>(numIn, 100, 1);
+    rbm->brainwash();
+    rbm->setMomentum(0.5);
+
+    /*
+    std::fstream fs;
+    fs.open("rbm.txt", std::ios_base::out);
+    rbm->serialize(fs);
+    fs.close();
+
+    rbm->resize(1, 1);
+    */
+#if 1
+    {
+        std::fstream fs;
+        fs.open("mnist_rbm_100h.txt", std::ios_base::in);
+        rbm->deserialize(fs);
+        fs.close();
+        rbm->dump();
+    }
+#endif
+
+    rbm->info();
+
+    F err = 0., err_sum = 0., err_min = 0., err_max = 0.;
+    size_t err_count = 1;
+    const size_t num = 250000;
+    for (size_t it=0; it<num; ++it)
+    {
+        if (it % 1000 == 0)
+        {
+            //rbm->dump();
+            std::cout << "step " << std::left << std::setw(9) << it
+                      << " err " << std::setw(9) << err_min
+                      << " - " << std::setw(9) << err_max
+                      << " av " << std::setw(9) << (err_sum / err_count)
+                      << " avweight " << rbm->getWeightAverage()
+                      << std::endl;
+
+            err_max = 0.;
+            err_min = -1.;
+        }
+
+#ifdef MNIST
+        size_t idx = rand() % set.numSamples();
+        //idx = idx % 10;
+        err = rbm->cd(set.image(idx), 3, 0.01);
+        err = rbm->compareInput(set.image(idx));
+#else
+        err = rbm->cd(&input[0], 2, 0.1);
+#endif
+        // gather error stats
+        if (err_min < 0.)
+            err_min = err;
+        else
+            err_min = std::min(err_min, err);
+        err_max = std::max(err_max, err);
+
+        if (err > 0.)
+        {
+            err_sum += err;
+            ++err_count;
+        }
+
+        if (err > 0.0 && err < 20.)
+        {
+            //printStateAscii(rbm->input(), set.width(), set.height());
+            //printStateAscii(rbm->output(), rbm->numOut(), 1);
+        }
+    }
+
+#if 0
+    {
+        std::fstream fs;
+        fs.open("mnist_rbm_100h.txt", std::ios_base::out);
+        rbm->serialize(fs);
+        fs.close();
+    }
+#endif
+
+}
+
+
 
 int main()
 {
 	srand(time(NULL));
 
     //TrainPosition t; t.exec(); return 0;
-    TrainMnist t; t.exec(); return 0;
+    //TrainMnist t; t.exec(); return 0;
+
     //maint<double>();
+    testRbm<float>();
 
 	return 0;
 }

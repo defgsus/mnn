@@ -18,7 +18,11 @@ TEMPLATE = app
 SOURCES += main.cpp \
     trainposition.cpp \
     mnistset.cpp \
-    trainmnist.cpp
+    trainmnist.cpp \
+    mnn/stack_serial_impl.inl \
+    mnn/perceptron_impl.inl \
+    mnn/perceptronbias_impl.inl \
+    mnn/rbm_impl.inl
 
 HEADERS += \
     mnn/activation.h  \
@@ -26,9 +30,10 @@ HEADERS += \
     mnn/layer.h  \
     mnn/mnn.h  \
     mnn/perceptron.h  \
-    mnn/perceptron_impl.inl  \
     mnn/stack_serial.h  \
-    mnn/stack_serial_impl.inl  \
     trainposition.h \
     mnistset.h \
-    trainmnist.h
+    trainmnist.h \
+    mnn/perceptronbias.h \
+    mnn/rbm.h \
+    mnn/exception.h
