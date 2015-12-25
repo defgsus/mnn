@@ -35,11 +35,12 @@ class Perceptron : public Layer<Float>
 
     virtual size_t numIn() const override;
     virtual size_t numOut() const override;
-    virtual const Float* input() const override { return &input_[0]; }
-    virtual const Float* output() const override { return &output_[0]; }
+    virtual const Float* inputs() const override { return &input_[0]; }
+    virtual const Float* outputs() const override { return &output_[0]; }
+    virtual const Float* weights() const override { return &weight_[0]; }
 
-    using Layer<Float>::input;
-    using Layer<Float>::output;
+    virtual Float weight(size_t input, size_t output) const override
+        { return weights()[output * input_.size() + input]; }
 
 	// ------- propagation -------------------
 

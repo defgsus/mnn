@@ -9,6 +9,7 @@
 #include "trainmnist.h"
 #include "mnistset.h"
 
+#define LOG(arg__) { std::cout << arg__ << std::endl; }
 
 /** Brainwash and train a network with @p nrSamples of
     @p nrIn floats each and @p nrSamples expected results.
@@ -258,7 +259,8 @@ void maint()
 }
 
 template <typename F>
-void printState(const F* state, size_t width, size_t height, std::ostream& out = std::cout)
+void printState(const F* state, size_t width, size_t height,
+                std::ostream& out = std::cout)
 {
     for (size_t j=0; j<height; ++j)
     {
@@ -271,7 +273,8 @@ void printState(const F* state, size_t width, size_t height, std::ostream& out =
 }
 
 template <typename F>
-void printStateAscii(const F* state, size_t width, size_t height, std::ostream& out = std::cout)
+void printStateAscii(const F* state, size_t width, size_t height,
+                     std::ostream& out = std::cout)
 {
     for (size_t j=0; j<height; ++j)
     {
@@ -281,6 +284,185 @@ void printStateAscii(const F* state, size_t width, size_t height, std::ostream& 
         }
         out << std::endl;
     }
+}
+
+
+/*     .     */
+/*    / \    */
+/*   /   \   */
+/*  /.....\  */
+/*           */
+template <typename Float, class Rbm>
+class RbmPyramid
+{
+public:
+    struct Sample
+    {
+        Sample() : err_cd(0.), err_rec(0.) { }
+        std::vector<Float> data;
+        Float err_cd, err_rec;
+    };
+
+private:
+    std::vector<size_t> numCells_;
+    std::vector<Rbm*> rbm_;
+    std::vector<Sample*> samples_, higherSamples_;
+    const size_t cdSteps_ = 4;
+    const Float learnRate_ = 0.01;
+    const Float momentum_ = .5;
+public:
+
+    void clearSamples() { for (auto s : samples_) delete s; samples_.clear(); }
+    void clearHigherSamples() { for (auto s : higherSamples_) delete s; higherSamples_.clear(); }
+
+    size_t numIn() const { return numCells_.empty() ? 0 : numCells_[0]; }
+
+    void setSize(const std::vector<size_t>& numCells)
+    {
+        numCells_ = numCells;
+        for (size_t i=1; i<numCells.size(); ++i)
+        {
+            auto rbm = new Rbm(numCells[i-1], numCells[i]);
+            rbm->brainwash();
+            rbm->setMomentum(momentum_);
+            rbm_.push_back(rbm);
+        }
+    }
+
+    void addSample(const Float* s)
+    {
+        auto sam = new Sample;
+        sam->data.resize(numIn());
+        for (auto& f : sam->data)
+            f = *s++;
+        samples_.push_back(sam);
+    }
+
+    std::string layerFilename(size_t index) const
+    {
+        std::stringstream str;
+        str << "rbm_layer_" << index << ".txt";
+        return str.str();
+    }
+
+    void loadLayer(size_t index)
+    {
+        rbm_[index]->loadTextFile(layerFilename(index));
+        std::cout << "loaded rbm layer " << index << " ("
+                  << layerFilename(index) << ")\n";
+        rbm_[index]->info();
+    }
+
+    /** Creates the net output for each sample_ into higherSamples_ */
+    void createHigherSamples(size_t index)
+    {
+        LOG("creating output for each sample for layer " << index);
+        clearHigherSamples();
+        if (index == 0)
+        for (size_t i = 0; i < samples_.size(); ++i)
+        {
+            // get space for output
+            auto hsam = new Sample;
+            higherSamples_.push_back(hsam);
+            hsam->data.resize(rbm_[index]->numOut());
+            // prob first layer
+            rbm_[0]->fprop(&samples_[i]->data[0], &hsam->data[0]);
+        }
+    }
+
+    void trainLayer(size_t index, size_t maxEpoch = 300000)
+    {
+        LOG("\n------ TRAIN LAYER #" << index << " ------");
+        Float err_min = -1.,
+              err_max = 0.,
+              err_sum = 0.;
+        Rbm* rbm = rbm_[index];
+        size_t epoch = 0, err_count = 0;
+        while (epoch++ <= maxEpoch)
+        {
+            // -- choose sample --
+
+            Sample * sample;
+            // real-data -> first layer
+            if (index == 0)
+            {
+                size_t samIndex = size_t(rand()) % samples_.size();
+                sample = samples_[samIndex];
+            }
+            // layer n-1 -> n
+            else
+            {
+                size_t samIndex = size_t(rand()) % higherSamples_.size();
+                sample = higherSamples_[samIndex];
+            }
+
+            // contrastive divergance training
+            Float err = rbm->cd(&sample->data[0], cdSteps_, learnRate_);
+            sample->err_cd = err;
+
+            // gather error stats
+            if (err_min < 0.)
+                err_min = err;
+            else
+                err_min = std::min(err_min, err);
+            err_max = std::max(err_max, err);
+
+            // CD error of 0. means probably no state at all
+            if (err > 0.)
+            {
+                err_sum += err;
+                ++err_count;
+            }
+
+            if (epoch == 1 || (epoch % 1000) == 0)
+            {
+                LOG(         "step " << std::left << std::setw(9) << epoch
+                          << " err " << std::setw(9) << err_min
+                          << " - " << std::setw(9) << err_max
+                          << " av " << std::setw(9) << (err_sum / err_count)
+                          << " avweight " << rbm->getWeightAverage()
+                   );
+
+                err_max = 0.;
+                err_min = -1.;
+            }
+        }
+
+        rbm->saveTextFile(layerFilename(index));
+        LOG("saved layer #" << index << " as '" << layerFilename(index) << "'");
+    }
+};
+
+
+
+void trainRbmPyramid()
+{
+    MnistSet set;
+    set.load("/home/defgsus/prog/DATA/mnist/t10k-labels.idx1-ubyte",
+             "/home/defgsus/prog/DATA/mnist/t10k-images.idx3-ubyte");
+    size_t numIn = set.width() * set.height();
+
+    // init pyramid
+    RbmPyramid<float, MNN::Rbm<float, MNN::Activation::Logistic>> stack;
+    stack.setSize({ numIn, 300, 10 });
+
+    // copy samples
+    for (size_t i=0; i<set.numSamples(); ++i)
+        stack.addSample(set.image(i));
+
+    //stack.trainLayer(0, 150000);
+    stack.loadLayer(0);
+    stack.createHigherSamples(0);
+    stack.trainLayer(1);
+}
+
+void testRbmPyramid()
+{
+    MnistSet set;
+    set.load("/home/defgsus/prog/DATA/mnist/t10k-labels.idx1-ubyte",
+             "/home/defgsus/prog/DATA/mnist/t10k-images.idx3-ubyte");
+    //size_t numIn = set.width() * set.height();
+
 }
 
 
@@ -329,6 +511,7 @@ void evaluateRbm(Net rbm, const MnistSet& set)
         std::cin.get();
     }
 }
+
 
 template <typename F>
 void testRbm()
@@ -406,8 +589,8 @@ void testRbm()
 
         if (err > 0.0 && err < 20.)
         {
-            //printStateAscii(rbm->input(), set.width(), set.height());
-            //printStateAscii(rbm->output(), rbm->numOut(), 1);
+            //printStateAscii(rbm->inputs(), set.width(), set.height());
+            //printStateAscii(rbm->outputs(), rbm->numOut(), 1);
         }
     }
 
@@ -418,16 +601,16 @@ void testRbm()
 }
 
 
-
 int main()
 {
 	srand(time(NULL));
 
     //TrainPosition t; t.exec(); return 0;
-    //TrainMnist t; t.exec(); return 0;
+    TrainMnist t; t.exec(); return 0;
 
-    maint<double>();
+    //maint<double>();
     //testRbm<float>();
+    //trainRbmPyramid();
 
 	return 0;
 }

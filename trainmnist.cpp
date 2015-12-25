@@ -9,6 +9,7 @@
 */
 
 #include <fstream>
+#include <iomanip>
 
 #include "trainmnist.h"
 #include "mnn/mnn.h"
@@ -16,7 +17,9 @@
 
 struct TrainMnist::Private
 {
-    void exec();
+    void loadSet();
+    void createNet();
+    void train();
     void trainStep();
 
     typedef float Float;
@@ -24,7 +27,9 @@ struct TrainMnist::Private
     MnistSet trainSet, testSet;
     MNN::StackSerial<Float> net;
     std::vector<Float> bufExp, bufOut;
-    Float error, error_sum;
+    std::vector<size_t> errorsPerClass;
+    Float error, error_min, error_max, error_sum;
+    size_t error_count;
 };
 
 TrainMnist::TrainMnist()
@@ -38,9 +43,16 @@ TrainMnist::~TrainMnist()
     delete p_;
 }
 
-void TrainMnist::exec() { p_->exec(); }
+void TrainMnist::exec()
+{
+    p_->loadSet();
+    p_->createNet();
 
-void TrainMnist::Private::exec()
+    p_->net.info();
+    p_->train();
+}
+
+void TrainMnist::Private::loadSet()
 {
     try
     {
@@ -60,48 +72,66 @@ void TrainMnist::Private::exec()
         std::cerr << e.what() << std::endl;
         return;
     }
+}
 
+void TrainMnist::Private::createNet()
+{
     size_t numIn = trainSet.width() * trainSet.height();
     bufExp.resize(10);
     bufOut.resize(10);
 
     auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 100);
-    l1->setMomentum(.1);
-    auto l2 = new MNN::Perceptron<Float, MNN::Activation::Logistic>(100, 10);
-    l2->setMomentum(.9);
-    net.add( l1 );
-    net.add( l2 );
+    auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(100, 10);
 
     net.brainwash();
 
-#if 1
     // load previous
-    {
-        std::fstream fs;
-        fs.open("mnist_rbm_100h.txt", std::ios_base::in);
-        l1->deserialize(fs);
-        fs.close();
-        //rbm->dump();
-    }
+#if 1
+    l1->loadTextFile("mnist_rbm_100h.txt");
+#else
+    l1->loadTextFile("rbm_layer_0.txt");
+    l2->loadTextFile("rbm_layer_1.txt");
 #endif
 
+    l1->setMomentum(.1);
+    l2->setMomentum(.9);
+    net.add( l1 );
+    net.add( l2 );
+}
 
-    net.info();
-
+void TrainMnist::Private::train()
+{
     // --------- training ---------
 
-    error_sum = 0.;
+    error_count = 0;
+    error_sum = error_max = 0.;
+    error_min = -1.;
+    errorsPerClass.resize(10);
+    for (auto&x : errorsPerClass)
+            x = 0.;
 
     for (int i=0; i<1000000; ++i)
     {
         trainStep();
 
-        if (i % 1000 == 0)
+        const int num = 5000;
+        if (i % num == 0)
         {
             std::cout << "epoch " << i
                       << ", error " << error
-                      << ", averror " << (error_sum / (i+1))
+                      << ", min " << error_min
+                      << ", max " << error_max
+                      << ", pc";
+            for (size_t j=0; j<errorsPerClass.size(); ++j)
+                std::cout << " " << std::setw(3) << errorsPerClass[j];
+            std::cout << ", % " << (float(error_count) / num * 100)
                       << std::endl;
+
+            error_count = 0;
+            error_max = 0.;
+            error_min = -1.;
+            for (auto&x : errorsPerClass)
+                    x = 0.;
         }
     }
 }
@@ -146,10 +176,22 @@ void TrainMnist::Private::trainStep()
     }
 
     error = answer < 0 ? 11. : std::abs(Float(answer - label));
+    if (answer != label)
+    {
+        ++error_count;
+        ++errorsPerClass[label];
+    }
 #endif
 
+    // get error stats
+    error_max = std::max(error_max, error);
+    if (error_min < 0.)
+        error_min = error;
+    else
+        error_min = std::min(error_min, error);
     error_sum += error;
 
+    // learn
     net.bprop(&bufOut[0], NULL, 0.9);
 }
 

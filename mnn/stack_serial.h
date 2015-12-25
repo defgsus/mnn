@@ -32,21 +32,23 @@ class StackSerial : public Layer<Float>
 
     virtual size_t numIn() const override;
     virtual size_t numOut() const override;
-    virtual const Float* input() const override
-        { return layer_.empty() ? 0 : layer_.front()->input(); }
-    virtual const Float* output() const override
-        { return layer_.empty() ? 0 : layer_.back()->output(); }
-
-    using Layer<Float>::input;
-    using Layer<Float>::output;
+    virtual const Float* inputs() const override
+        { return layer_.front()->inputs(); }
+    virtual const Float* outputs() const override
+        { return layer_.back()->outputs(); }
+    virtual const Float* weights() const override
+        { return layer_.front()->weights(); }
 
 	// ------- layer interface ---------------
 
 	/** return nr of layers */
-    virtual size_t numLayer() const;
+    size_t numLayer() const;
 
-    /** Adds a new layer, ownership is taken */
-	virtual void add(Layer<Float> * layer);
+    /** Adds a new layer, ownership IS TAKEN */
+    void add(Layer<Float>* layer);
+
+    /** Returns the @p index'th layer */
+    const Layer<Float>* layer(size_t index) const { return layer_[index]; }
 
 	// ------- propagation -------------------
 

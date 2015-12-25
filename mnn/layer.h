@@ -73,17 +73,22 @@ class Layer
     /** Return size of output */
     virtual size_t numOut() const = 0;
 
-    /** Return pointer to continous input states */
-    virtual const Float* input() const = 0;
-    /** Return pointer to continous output states */
-    virtual const Float* output() const = 0;
+    /** Return pointer to continous input values */
+    virtual const Float* inputs() const = 0;
+    /** Return pointer to continous output values */
+    virtual const Float* outputs() const = 0;
+    /** Return pointer to continous weight values */
+    virtual const Float* weights() const = 0;
 
-    /** Wrapper around input(void) */
-    Float input(size_t index) const { return input()[index]; }
-    /** Wrapper around output(void) */
-    Float output(size_t index) const { return output()[index]; }
+    /** Wrapper around inputs() */
+    virtual Float input(size_t index) const { return inputs()[index]; }
+    /** Wrapper around outputs() */
+    virtual Float output(size_t index) const { return outputs()[index]; }
+    /** Wrapper around weights(), returns weight between given input and output cell */
+    virtual Float weight(size_t input, size_t output) const
+        { return weights()[output * numIn() + input]; }
 
-	// ---- propagation -------
+    // ---- propagation -------
 
     /** Forward propagate.
         Transmit the data in @p input to @p output. */
