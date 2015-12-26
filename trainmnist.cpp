@@ -14,6 +14,7 @@
 #include "trainmnist.h"
 #include "mnn/mnn.h"
 #include "mnistset.h"
+#include "printstate.h"
 
 struct TrainMnist::Private
 {
@@ -25,16 +26,17 @@ struct TrainMnist::Private
     void trainLabelStep();
     /** Runs all test images and gathers errors */
     void testPerformance();
-    void getLabelError(int label);
+    /** Gets error and stats, returns label from net */
+    int getLabelError(int label);
 
     typedef float Float;
 
     MnistSet trainSet, testSet;
     MNN::StackSerial<Float> net;
-    std::vector<Float> bufExp, bufOut;
+    std::vector<Float> bufIn, bufExp, bufOut, bufErr;
     std::vector<size_t> errorsPerClass;
     Float error, error_min, error_max, error_sum;
-    size_t error_count;
+    size_t epoch, error_count;
 };
 
 TrainMnist::TrainMnist()
@@ -93,13 +95,17 @@ void TrainMnist::Private::saveAllLayers(const std::string& postfix)
 
 void TrainMnist::Private::createNet()
 {
-    size_t numIn = trainSet.width() * trainSet.height();
-    bufExp.resize(10);
-    bufOut.resize(10);
+    size_t numIn = trainSet.width() * trainSet.height(),
+           numOut = 10;
+    bufIn.resize(numIn);
+    bufExp.resize(numOut);
+    bufOut.resize(numOut);
+    bufErr.resize(numOut);
+    errorsPerClass.resize(numOut);
 
-    auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 100);
-    auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(100, 10);
-    //auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(100, 10);
+    auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 200);
+    //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
+    auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(200, numOut);
 
     net.brainwash();
 
@@ -107,27 +113,33 @@ void TrainMnist::Private::createNet()
 #if 0
     l1->loadTextFile("mnist_rbm_100h.txt");
 #elif 0
-    l1->loadTextFile("rbm_layer_0.txt");
-    l2->loadTextFile("rbm_layer_1.txt");
+    l1->loadTextFile("../rbm_layer_0_300h.txt");
+    l2->loadTextFile("../rbm_layer_1_200h.txt");
 #endif
 
-    l1->setMomentum(.5);
-    l2->setMomentum(.9);
-    //l2->setDropOut(MNN::DO_TRAIN);
-    //l3->setMomentum(.9);
+    l1->setMomentum(.2);
+    //l2->setMomentum(.5);
+    l3->setMomentum(.9);
     net.add( l1 );
-    net.add( l2 );
-    //net.add( l3 );
+    //net.add( l2 );
+    net.add( l3 );
+
+#if 0
+    net.loadTextFile("../mnist_e1000_stack.txt");
+#endif
+
 }
 
 void TrainMnist::Private::train()
 {
     // --------- training ---------
 
-    errorsPerClass.resize(10);
+    clearErrorCount();
+    testPerformance();
     clearErrorCount();
 
-    for (int i=0; i<10000000; ++i)
+    epoch = 0;
+    while (true)
     {
         trainLabelStep();
 
@@ -135,19 +147,26 @@ void TrainMnist::Private::train()
 
         // test performance on validation set
         // once in a while
-        if (i % 60000 == 0)
+        if (epoch % 60000 == 0)
         {
             testPerformance();
-            // error < 10% ?
-            if (error_count < 1000)
-                saveAllLayers("mnist-best");
-
+#if 1
+            // save when error < x
+            if (error_count < 100)
+                saveAllLayers("../mnist_e100");
+            else if (error_count < 200)
+                saveAllLayers("../mnist_e200");
+            else if (error_count < 500)
+                saveAllLayers("../mnist_e500");
+            else if (error_count < 1000)
+                saveAllLayers("../mnist_e1000");
+#endif
             clearErrorCount();
         }
         else
-        if (i % num == 0)
+        if (epoch % num == 0)
         {
-            std::cout << "epoch " << std::setw(7) << i
+            std::cout << "epoch " << std::setw(7) << epoch
                       << ", error " << error_min
                       << " - " << error_max
                       << ", pc";
@@ -172,31 +191,57 @@ void TrainMnist::Private::clearErrorCount()
 
 void TrainMnist::Private::trainLabelStep()
 {
-    // choose a sample
-    size_t num = size_t(rand()) % trainSet.numSamples();
-    uint8_t label = trainSet.label(num);
-    const Float *image = trainSet.image(num);
+    const size_t numBatch = 1;
 
-    // prepare expected output
-    for (auto& f : bufExp)
-        f = 0.0;
-    bufExp[label] = .9;
+    for (auto& b : bufErr)
+        b = 0.;
 
-    net.fprop(image, &bufOut[0]);
-
-    // calc error
-    for (size_t i=0; i<bufExp.size(); ++i)
+    for (size_t batch = 0; batch < numBatch; ++batch, ++epoch)
     {
-        bufOut[i] = bufExp[i] - bufOut[i];
+        // choose a sample
+        size_t num = size_t(rand()) % trainSet.numSamples();
+        uint8_t label = trainSet.label(num);
+        const Float *image = trainSet.image(num);
+
+        // prepare expected output
+        for (auto& f : bufExp)
+            f = 0.0;
+        bufExp[label] = .9;
+
+    #if 0
+        net.fprop(image, &bufOut[0]);
+    #else // with noise
+        for (size_t i=0; i<bufIn.size(); ++i)
+            bufIn[i] = image[i] + MNN::rnd(-.1, .1);
+        net.fprop(&bufIn[0], &bufOut[0]);
+    #endif
+
+        // calc error
+        for (size_t i=0; i<bufExp.size(); ++i)
+        {
+            Float e = bufExp[i] - bufOut[i];
+            //if (std::abs(e) > 0.05)
+            //    e = e > 0. ? 1. : -1.;
+            //e = std::max(Float(-1), std::min(Float(1), e));
+            e = e * e * e;
+            bufErr[i] += e;
+        }
+
+        getLabelError(label);
     }
 
-    getLabelError(label);
+    // scale error by batch size
+    for (auto& b : bufErr)
+        b /= numBatch;
+
+//    for (auto& e : bufErr)
+//        e = e * (Float(1) - e);
 
     // learn
-    net.bprop(&bufOut[0], NULL, 0.9);
+    net.bprop(&bufErr[0], NULL, 0.9);
 }
 
-void TrainMnist::Private::getLabelError(int label)
+int TrainMnist::Private::getLabelError(int label)
 {
     // get error from actual label number
     int answer = -1;
@@ -229,13 +274,13 @@ void TrainMnist::Private::getLabelError(int label)
     else
         error_min = std::min(error_min, error);
     error_sum += error;
+
+    return answer;
 }
 
 void TrainMnist::Private::testPerformance()
 {
     clearErrorCount();
-
-    net.layer(1)->setDropOut(MNN::DO_PERFORM);
 
     for (size_t num=0; num < testSet.numSamples(); ++num)
     {
@@ -244,15 +289,20 @@ void TrainMnist::Private::testPerformance()
 
         net.fprop(image, &bufOut[0]);
 
-        getLabelError(label);
+        int answer = getLabelError(label);
+        (void)answer;
+#if 0
+        if (error)
+        {
+            std::cout << "WRONG " << answer << " / " << (int)label << std::endl;
+            printStateAscii(image, testSet.width(), testSet.height());
+        }
+#endif
     }
 
-    net.layer(1)->setDropOut(MNN::DO_TRAIN);
-    //net.layer(1)->setDropOut(MNN::DO_OFF);
-
     // output performance
-    std::cout << "performance "
-              << ", error " << error_min
+    std::cout << "validation,    "
+              << "error " << error_min
               << " - " << error_max
               << ", pc";
     for (size_t j=0; j<errorsPerClass.size(); ++j)

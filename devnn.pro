@@ -37,7 +37,8 @@ HEADERS += \
     mnistset.h \
     mnn/perceptronbias.h \
     mnn/rbm.h \
-    mnn/exception.h
+    mnn/exception.h \
+    printstate.h
 
 OTHER_FILES += \
     .gitignore \

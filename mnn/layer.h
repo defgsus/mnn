@@ -18,6 +18,7 @@
 namespace MNN {
 
 
+/** XXX Not used yet */
 enum DropOutMode
 {
     /** No drop-out */
@@ -108,9 +109,6 @@ class Layer
 
     // ---- propagation -------
 
-    /** XXX Experimental */
-    virtual void setDropOut(DropOutMode) { }
-
     /** Forward propagate.
         Transmit the data in @p input to @p output. */
     virtual void fprop(const Float * input, Float * output) = 0;
@@ -122,8 +120,6 @@ class Layer
         be set internally. */
     virtual void bprop(const Float * error, Float * error_output = 0,
                        Float global_learn_rate = 1) = 0;
-
-    void setDropOut();
 
 	// -------- info ----------
 
