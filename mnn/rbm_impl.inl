@@ -16,6 +16,7 @@ MNN_RBM::Rbm(size_t nrIn, size_t nrOut, Float learnRate, bool bc)
     : learnRate_	(learnRate)
     , momentum_     (.1)
     , biasCell_     (bc)
+    , dropOutMode_  (DO_OFF)
 {
     resize(nrIn, nrOut);
 }
@@ -126,6 +127,20 @@ void MNN_RBM::brainwash()
 // ----------- propagation ---------------
 
 MNN_TEMPLATE
+void MNN_RBM::setDropOut(DropOutMode mode)
+{
+    dropOutMode_ = mode;
+
+    if (dropOutMode_ != DO_OFF)
+    {
+        if (droppedCells_.size() != input_.size())
+            droppedCells_.resize(input_.size());
+        for (auto& d : droppedCells_)
+            d = 0;
+    }
+}
+
+MNN_TEMPLATE
 void MNN_RBM::fprop(const Float * input, Float * output)
 {
     copyInput_(input);
@@ -145,31 +160,75 @@ void MNN_RBM::bprop(const Float * error, Float * error_output,
 
     const Float * e;
 
-    // pass error through
-    if (error_output)
-    for (size_t i = 0; i<numIn(); ++i, ++error_output)
+    // no drop-out
+    if (dropOutMode_ != DO_TRAIN || droppedCells_.size() == input_.size())
     {
-        Float sum = 0;
-        e = error;
-        for (size_t o = 0; o < output_.size(); ++o, ++e)
+        // pass error through
+        if (error_output)
+        for (size_t i = 0; i<numIn(); ++i, ++error_output)
         {
-            sum += *e * weight_[o * input_.size() + i];
+            Float sum = 0;
+            e = error;
+            for (size_t o = 0; o < output_.size(); ++o, ++e)
+            {
+                sum += *e * weight_[o * input_.size() + i];
+            }
+            *error_output = sum;
         }
-        *error_output = sum;
-    }
 
-    // backprob derivative
-    Float* w = &weight_[0];
-    for (auto o = output_.begin(); o != output_.end(); ++o, ++error)
-    {
-        Float de = ActFunc::derivative(*error, *o);
-
-        Float* pd = &prevDelta_[0];
-        for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd)
+        // backprob derivative
+        Float* w = &weight_[0];
+        for (auto o = output_.begin(); o != output_.end(); ++o, ++error)
         {
-            *pd = momentum_ * *pd
-                + global_learn_rate * de * *i;
-            *w += *pd;
+            Float de = ActFunc::derivative(*error, *o);
+
+            Float* pd = &prevDelta_[0];
+            for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd)
+            {
+                *pd = momentum_ * *pd
+                    + global_learn_rate * de * *i;
+                *w += *pd;
+            }
+        }
+    }
+    // with drop-out
+    else
+    {
+        // pass error through
+        if (error_output)
+        for (size_t i = 0; i<numIn(); ++i, ++error_output)
+        {
+            if (droppedCells_[i])
+                *error_output = Float(0);
+            else
+            {
+                Float sum = 0;
+                e = error;
+                for (size_t o = 0; o < output_.size(); ++o, ++e)
+                {
+                    sum += *e * weight_[o * input_.size() + i];
+                }
+                *error_output = sum;
+            }
+        }
+
+        // backprob derivative
+        Float* w = &weight_[0];
+        for (auto o = output_.begin(); o != output_.end(); ++o, ++error)
+        {
+            Float de = ActFunc::derivative(*error, *o);
+
+            Float* pd = &prevDelta_[0];
+            auto drop = &droppedCells_[0];
+            for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd, ++drop)
+            {
+                if (!*drop)
+                {
+                    *pd = momentum_ * *pd
+                        + global_learn_rate * de * *i;
+                    *w += *pd;
+                }
+            }
         }
     }
 }
@@ -214,7 +273,7 @@ Float MNN_RBM::cd(const Float* input, size_t numSteps, Float learn_rate)
 }
 
 MNN_TEMPLATE
-Float MNN_RBM::compareInput(const Float* input)
+Float MNN_RBM::compareInput(const Float* input) const
 {
     Float d = 0.;
     const size_t num = numIn();
@@ -281,16 +340,60 @@ void MNN_RBM::getCorrelation_(Float* matrix) const
 MNN_TEMPLATE
 void MNN_RBM::propUp_()
 {
-    Float* w = &weight_[0];
-    for (auto o = output_.begin(); o != output_.end(); ++o)
-    {
-        Float sum = 0;
-        for (auto i = input_.begin(); i != input_.end(); ++i, ++w)
-        {
-            sum += *i * *w;
-        }
+    if (dropOutMode_ != DO_OFF)
+    if (droppedCells_.size() != input_.size())
+        droppedCells_.resize(input_.size());
 
-        *o = ActFunc::activation(sum);
+    const Float dropProp_ = Float(0.5);
+
+    Float* w = &weight_[0];
+
+    if (dropOutMode_ == DO_OFF)
+    {
+        for (auto o = output_.begin(); o != output_.end(); ++o)
+        {
+            Float sum = 0;
+            for (auto i = input_.begin(); i != input_.end(); ++i, ++w)
+            {
+                sum += *i * *w;
+            }
+
+            *o = ActFunc::activation(sum);
+        }
+    }
+    else if (dropOutMode_ == DO_TRAIN)
+    {
+        // disable cells randomly
+        for (auto& d : droppedCells_)
+            d = rnd(Float(0), Float(1)) < dropProp_ ? 1 : 0;
+
+        for (auto o = output_.begin(); o != output_.end(); ++o)
+        {
+            Float sum = 0;
+            size_t dropIdx = 0;
+            for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++dropIdx)
+            {
+                if (!droppedCells_[dropIdx])
+                    sum += *i * *w;
+            }
+
+            *o = ActFunc::activation(sum);
+        }
+    }
+    else // if (dropOutMode_ == DO_PERFORM)
+    {
+        const Float scale = Float(1) - dropProp_;
+
+        for (auto o = output_.begin(); o != output_.end(); ++o)
+        {
+            Float sum = 0;
+            for (auto i = input_.begin(); i != input_.end(); ++i, ++w)
+            {
+                sum += *i * *w;
+            }
+
+            *o = ActFunc::activation(sum * scale);
+        }
     }
 }
 
@@ -315,7 +418,7 @@ void MNN_RBM::makeBinary_(Float* states, size_t num)
     for (size_t i=0; i<num; ++i, ++states)
     {
         *states = *states > rnd(Float(0), Float(1))
-                ? 1. : 0.;
+                ? Float(1) : Float(0);
     }
 }
 

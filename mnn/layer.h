@@ -17,6 +17,22 @@
 
 namespace MNN {
 
+
+enum DropOutMode
+{
+    /** No drop-out */
+    DO_OFF,
+    /** Drop-out during training.
+        Hidden cells are disabled with a probability of .5 */
+    DO_TRAIN,
+    /** Drop-out during performance.
+        A network trained with DO_TRAIN will half the output
+        of the hidden cells */
+    DO_PERFORM
+};
+
+
+
 /** NN-Layer base class (abstract).
 
     <p>A layer is at it's basic level a set of inputs and outputs, which are
@@ -54,6 +70,8 @@ class Layer
 {
 	public:
 
+    // ----------- ctor ----------------------
+
 	Layer() { }
 	virtual ~Layer() { }
 
@@ -90,6 +108,9 @@ class Layer
 
     // ---- propagation -------
 
+    /** XXX Experimental */
+    virtual void setDropOut(DropOutMode) { }
+
     /** Forward propagate.
         Transmit the data in @p input to @p output. */
     virtual void fprop(const Float * input, Float * output) = 0;
@@ -101,6 +122,8 @@ class Layer
         be set internally. */
     virtual void bprop(const Float * error, Float * error_output = 0,
                        Float global_learn_rate = 1) = 0;
+
+    void setDropOut();
 
 	// -------- info ----------
 

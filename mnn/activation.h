@@ -59,9 +59,16 @@ struct Logistic : public Base
     static Float activation(Float in)
         { return Float(1.)/(Float(1.) + std::exp(-in)); }
 
+#if 1
 	template <typename Float>
     static Float derivative(Float error, Float state)
         { return state * (Float(1.) - state) * error; }
+#else
+    template <typename Float>
+    static Float derivative(Float error, Float state)
+        { const Float e = std::exp(state);
+            return (e / std::pow(Float(1) + e, Float(2))) * error; }
+#endif
 };
 
 /** logistic10 activation */
@@ -76,9 +83,23 @@ struct Logistic10 : public Base
 
 	template <typename Float>
     static Float derivative(Float error, Float state)
-        { return state * (Float(1.) - state) * error; }
+        { return state * (Float(1.) - state) * error * Float(10); }
 };
 
+
+/** sine activation */
+struct Sine : public Base
+{
+    static const char * static_name() { return "sine"; }
+    virtual const char * name() const { return static_name(); }
+
+    template <typename Float>
+    static Float activation(Float in) { return std::sin(in); }
+
+    template <typename Float>
+    static Float derivative(Float error, Float state)
+        { return std::cos(state * error) * error; }
+};
 
 /** cosine activation */
 struct Cosine : public Base
@@ -91,10 +112,10 @@ struct Cosine : public Base
 
 	template <typename Float>
     static Float derivative(Float error, Float state)
-        { return -std::sin(state) * error; }
+        { return -std::sin(state * error) * error; }
 };
 
-/** smooth activation */
+/** smooth activation - a sigmoid curve */
 struct Smooth : public Base
 {
 	static const char * static_name() { return "smooth"; }
@@ -109,7 +130,7 @@ struct Smooth : public Base
         { return Float(6.)*(Float(1.)-state) * error; }
 };
 
-/** smooth2 activation */
+/** smooth2 activation - a steeper sigmoid curve */
 struct Smooth2 : public Base
 {
 	static const char * static_name() { return "smooth2"; }
@@ -124,6 +145,29 @@ struct Smooth2 : public Base
         { return Float(30.) * std::pow(state-Float(1.), Float(2.))
                             * state * state * error; }
 };
+
+
+/** max(0, x) */
+struct LinearRectified : public Base
+{
+    static const char * static_name() { return "linear_rectified"; }
+    virtual const char * name() const { return static_name(); }
+
+    template <typename Float>
+    static Float activation(Float in)
+        { return std::max(Float(0), in); }
+
+#if 1
+    template <typename Float>
+    static Float derivative(Float error, Float /*state*/)
+        { return error; }
+#else
+    template <typename Float>
+    static Float derivative(Float error, Float state)
+        { return state <= Float(0) ? Float(0) : error; }
+#endif
+};
+
 
 } // namespace Activation
 

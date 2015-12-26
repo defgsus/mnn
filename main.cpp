@@ -11,6 +11,35 @@
 
 #define LOG(arg__) { std::cout << arg__ << std::endl; }
 
+template <typename F>
+void printState(const F* state, size_t width, size_t height,
+                std::ostream& out = std::cout)
+{
+    for (size_t j=0; j<height; ++j)
+    {
+        for (size_t i=0; i<width; ++i, ++state)
+        {
+            out << *state << " ";
+        }
+        out << std::endl;
+    }
+}
+
+template <typename F>
+void printStateAscii(const F* state, size_t width, size_t height,
+                     std::ostream& out = std::cout)
+{
+    for (size_t j=0; j<height; ++j)
+    {
+        for (size_t i=0; i<width; ++i, ++state)
+        {
+            out << ( *state > .7 ? '#' : *state > .35 ? '*' : '.' );
+        }
+        out << std::endl;
+    }
+}
+
+
 /** Brainwash and train a network with @p nrSamples of
     @p nrIn floats each and @p nrSamples expected results.
     Returns average error over each input sample
@@ -88,7 +117,7 @@ void simple_test_mean(Net& net, size_t nrIn, size_t nrSamples,
 {
     auto tup = simple_test(net, nrIn, nrSamples, input, result),
          av = tup, mi = tup, ma = tup;
-    int num = 300;
+    int num = 800;
     std::cout << "testing for " << num << " runs" << std::endl;
     for (int i = 0; i < num; ++i)
     {
@@ -234,7 +263,11 @@ void xor_test(Net& net)
 
 
 
-
+/* ------------ simple pattern learner -----------
+   using above functions
+   averaged over a number of runs
+   to quickly evaluate networks, and learning and activation functions
+   */
 
 template <typename F>
 void maint()
@@ -242,6 +275,8 @@ void maint()
     //MNN::Perceptron<float, MNN::Activation::Linear> net;
 
     MNN::StackSerial<F> net;
+#if 0
+    // about 540 epochs for av error < 0.01
     auto l1 = new MNN::Perceptron<F, MNN::Activation::Tanh>(10,10, 1);
     auto l2 = new MNN::Perceptron<F, MNN::Activation::Logistic>(10,10, 1);
     auto l3 = new MNN::Perceptron<F, MNN::Activation::Linear>(10,10, 0.1);
@@ -250,6 +285,14 @@ void maint()
     //l1->setLearnRateBias(0.01);
     l2->setMomentum(.5);
     l3->setMomentum(.5);
+#else
+    auto l1 = new MNN::Perceptron<F, MNN::Activation::Tanh>(10,40, 1);
+    auto l2 = new MNN::Perceptron<F, MNN::Activation::Logistic>(40,10, 1);
+    auto l3 = new MNN::Perceptron<F, MNN::Activation::Linear>(10,10, 0.1);
+    l1->setMomentum(.5);
+    l2->setMomentum(.5);
+    l3->setMomentum(.5);
+#endif
 
     net.add(l1);
     net.add(l2);
@@ -258,39 +301,15 @@ void maint()
     test_xor_pattern<F>(net);
 }
 
-template <typename F>
-void printState(const F* state, size_t width, size_t height,
-                std::ostream& out = std::cout)
-{
-    for (size_t j=0; j<height; ++j)
-    {
-        for (size_t i=0; i<width; ++i, ++state)
-        {
-            out << *state << " ";
-        }
-        out << std::endl;
-    }
-}
-
-template <typename F>
-void printStateAscii(const F* state, size_t width, size_t height,
-                     std::ostream& out = std::cout)
-{
-    for (size_t j=0; j<height; ++j)
-    {
-        for (size_t i=0; i<width; ++i, ++state)
-        {
-            out << ( *state > .7 ? '#' : *state > .35 ? '*' : '.' );
-        }
-        out << std::endl;
-    }
-}
 
 
-/*     .     */
+
+
+
 /*    / \    */
 /*   /   \   */
 /*  /.....\  */
+/*     .     */
 /*           */
 template <typename Float, class Rbm>
 class RbmPyramid
@@ -368,6 +387,9 @@ public:
             // prob first layer
             rbm_[0]->fprop(&samples_[i]->data[0], &hsam->data[0]);
         }
+        // XXX higher levels missing
+        else abort();
+
     }
 
     void trainLayer(size_t index, size_t maxEpoch = 300000)
@@ -532,7 +554,7 @@ void testRbm()
         f = MNN::rnd(F(0), F(1));
 #endif
 
-    auto rbm = new MNN::Rbm<F, MNN::Activation::Logistic>(numIn, 20, 1);
+    auto rbm = new MNN::Rbm<F, MNN::Activation::LinearRectified>(numIn, 20, 1);
     rbm->brainwash();
     rbm->setMomentum(0.5);
 

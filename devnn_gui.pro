@@ -22,7 +22,8 @@ SOURCES += \
     mnn/perceptronbias_impl.inl \
     mnn/rbm_impl.inl \
     gui/labwindow.cpp \
-    gui/statedisplay.cpp
+    gui/statedisplay.cpp \
+    gui/trainthread.cpp
 
 HEADERS += \
     trainposition.h \
@@ -38,7 +39,9 @@ HEADERS += \
     mnn/rbm.h \
     mnn/exception.h \
     gui/labwindow.h \
-    gui/statedisplay.h
+    gui/statedisplay.h \
+    gui/rbm_stack.h \
+    gui/trainthread.h
 
 OTHER_FILES += \
     .gitignore \

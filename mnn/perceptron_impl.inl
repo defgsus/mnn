@@ -109,7 +109,7 @@ void MNN_PERCEPTRON::brainwash()
         input_.back() = 1.;
 
 	// randomize weights (assume normalized states)
-    Float f = 1.0 / std::sqrt(input_.size());
+    Float f = 1. / std::sqrt(input_.size());
     //Float f = 1.0 / input_.size();
 	for (auto e = weight_.begin(); e != weight_.end(); ++e)
 		*e = rnd(-f, f);

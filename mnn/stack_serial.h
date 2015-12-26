@@ -50,6 +50,9 @@ class StackSerial : public Layer<Float>
     /** Returns the @p index'th layer */
     const Layer<Float>* layer(size_t index) const { return layer_[index]; }
 
+    /** Returns the @p index'th layer */
+    Layer<Float>* layer(size_t index) { return layer_[index]; }
+
 	// ------- propagation -------------------
 
     virtual void fprop(const Float * input, Float * output) override;

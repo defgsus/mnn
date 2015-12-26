@@ -24,6 +24,10 @@ signals:
 
 public slots:
 
+private slots:
+
+    void onNetChanged();
+
 private:
     struct Private;
     Private * p_;

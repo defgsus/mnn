@@ -42,7 +42,7 @@ private:
 };
 
 
-class mnist_exception
+class mnist_exception : public std::exception
 {
     const char * what_;
 public:

@@ -30,6 +30,9 @@ public slots:
         Any pointers given to setStates are dropped */
     void setStateSize(size_t width, size_t height = 1, size_t instances = 1);
     void setStateSize(const QSize& s, size_t instances = 1);
+    /** Sets the number of multiple instances that are maximally
+        placed in one row. Use 0 to don't care. */
+    void setInstancesPerRow(size_t w);
 
     /** Copies the values in @p states assuming the currently
         given size. The pointer given is not longer referenced

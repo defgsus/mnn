@@ -48,6 +48,8 @@ class Rbm : public Layer<Float>
 
     // ------- propagation -------------------
 
+    virtual void setDropOut(DropOutMode mode) override;
+
     virtual void fprop(const Float * input, Float * output) override;
 
     virtual void bprop(const Float * error, Float * error_output = 0,
@@ -59,7 +61,7 @@ class Rbm : public Layer<Float>
 
     /** Returns the sum of the absolute difference between
         @p input and the current input state */
-    Float compareInput(const Float* input);
+    Float compareInput(const Float* input) const;
 
     // ------- info --------------------------
 
@@ -103,11 +105,14 @@ protected:
         prevDelta_,
         correlationData_,
         correlationModel_;
+    std::vector<uint8_t>
+        droppedCells_;
 
     Float learnRate_,
           momentum_;
 
     bool biasCell_;
+    DropOutMode dropOutMode_;
 };
 
 #include "rbm_impl.inl"
