@@ -28,6 +28,7 @@ class StackSerial : public Layer<Float>
 	// ----------- nn interface --------------
 
     virtual void resize(size_t numIn, size_t numOut) override;
+    virtual void grow(size_t nrIn, size_t nrOut, Float randomDev) override;
     virtual void brainwash() override;
 
     virtual size_t numIn() const override;
@@ -46,6 +47,10 @@ class StackSerial : public Layer<Float>
 
     /** Adds a new layer, ownership IS TAKEN */
     void add(Layer<Float>* layer);
+
+    /** To be called when a layer that has already been added
+        has changed it's size. */
+    void updateLayers() { resizeBuffers_(); }
 
     /** Returns the @p index'th layer */
     const Layer<Float>* layer(size_t index) const { return layer_[index]; }

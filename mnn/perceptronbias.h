@@ -39,6 +39,7 @@ class PerceptronBias : public Layer<Float>
     // ----------- nn interface --------------
 
     virtual void resize(size_t numIn, size_t numOut) override;
+    virtual void grow(size_t nrIn, size_t nrOut, Float randomDev) override;
     virtual void brainwash() override;
 
     virtual size_t numIn() const override;

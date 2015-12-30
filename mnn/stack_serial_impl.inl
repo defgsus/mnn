@@ -81,6 +81,20 @@ void MNN_STACKSERIAL::resize(size_t numIn, size_t numOut)
 }
 
 MNN_TEMPLATE
+void MNN_STACKSERIAL::grow(size_t nrIn, size_t nrOut, Float randomDev)
+{
+    if (layer_.empty())
+        return;
+
+    if (nrIn > layer_.front()->numIn())
+        layer_.front()->grow(nrIn, layer_.front()->numOut(), randomDev);
+    if (nrOut > layer_.back()->numOut())
+        layer_.back()->grow(layer_.back()->numIn(), nrOut, randomDev);
+
+    resizeBuffers_();
+}
+
+MNN_TEMPLATE
 size_t MNN_STACKSERIAL::numIn() const
 {
     return (layer_.empty())? 0 : layer_[0]->numIn();
@@ -128,15 +142,15 @@ void MNN_STACKSERIAL::resizeBuffers_()
 
 	buffer_.resize(layer_.size()-1);
 
-	size_t i = 0;
-	for (auto b = buffer_.begin(); b != buffer_.end(); ++b, ++i)
+    for (size_t i = 0; i < layer_.size(); ++i)
 	{
 		// resize layer if no fit with previous layer
-        if (i>0 && layer_[i]->numIn() != layer_[i-1]->numOut())
+        if (i > 0 && layer_[i]->numIn() != layer_[i-1]->numOut())
             layer_[i]->resize(layer_[i-1]->numOut(), layer_[i]->numOut());
 
         // alloc immediate buffer
-        b->resize(layer_[i]->numOut());
+        if (i < buffer_.size())
+            buffer_[i].resize(layer_[i]->numOut());
 	}
 
 //	for (auto b = buffer_.begin(); b != buffer_.end(); ++b)

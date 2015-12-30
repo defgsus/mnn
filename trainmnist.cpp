@@ -105,7 +105,7 @@ void TrainMnist::Private::createNet()
 
     auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 200);
     //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
-    auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(200, numOut);
+    auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(200, numOut, 1., true);
 
     net.brainwash();
 
@@ -138,6 +138,8 @@ void TrainMnist::Private::train()
     testPerformance();
     clearErrorCount();
 
+    bool doGrow = true;
+
     epoch = 0;
     while (true)
     {
@@ -166,16 +168,26 @@ void TrainMnist::Private::train()
         else
         if (epoch % num == 0)
         {
+            Float error_percent = Float(error_count) / num * 100;
+
             std::cout << "epoch " << std::setw(7) << epoch
                       << ", error " << error_min
                       << " - " << error_max
                       << ", pc";
             for (size_t j=0; j<errorsPerClass.size(); ++j)
                 std::cout << " " << std::setw(3) << errorsPerClass[j];
-            std::cout << ", % " << (float(error_count) / num * 100)
+            std::cout << ", % " << error_percent
                       << std::endl;
 
             clearErrorCount();
+
+            if (error_percent < 20 && doGrow)
+            {
+                net.layer(0)->grow(net.layer(0)->numIn(), 500, 0.05);
+                net.updateLayers();
+                net.info();
+                doGrow = false;
+            }
         }
     }
 }

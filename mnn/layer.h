@@ -84,6 +84,12 @@ class Layer
     /** Clear states / randomize weights */
 	virtual void brainwash() = 0;
 
+    /** Resizes the network by copying the current weights
+        with a random deviation of @p randomDev.
+        Does nothing if @p nrIn or @p nrOut is smaller than
+        the current values. */
+    virtual void grow(size_t nrIn, size_t nrOut, Float randomDev) = 0;
+
     // -------- data access ---------------
 
     /** Return size of input */

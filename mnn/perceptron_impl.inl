@@ -81,6 +81,54 @@ void MNN_PERCEPTRON::resize(size_t nrIn, size_t nrOut)
 }
 
 MNN_TEMPLATE
+void MNN_PERCEPTRON::grow(size_t nrIn, size_t nrOut, Float randomDev)
+{
+    if (nrIn < numIn() || nrOut < numOut())
+        return;
+
+    if (biasCell_)
+        ++nrIn;
+
+    // copy weights
+    std::vector<Float>
+            weight(nrIn * nrOut);
+    size_t o;
+    for (o=0; o<output_.size(); ++o)
+    {
+        size_t i;
+        for (i=0; i<input_.size(); ++i)
+            weight[o * nrIn + i] = weight_[o * input_.size() + i];
+        // choose random input to copy
+        size_t ri = size_t(rand()) % input_.size();
+        // run through additional inputs
+        for (; i<nrIn; ++i)
+            weight[o * nrIn + i] = weight_[o * input_.size() + ri]
+                                    + rndg(Float(0), randomDev);
+    }
+    // run through additional outputs
+    for (; o<nrOut; ++o)
+    {
+        // choose random input and output to copy
+        size_t ro = size_t(rand()) % output_.size();
+        size_t ri = size_t(rand()) % input_.size();
+
+        size_t i;
+        for (i=0; i<input_.size(); ++i)
+            weight[o * nrIn + i] = weight_[ro * input_.size() + i];
+        for (; i<nrIn; ++i)
+            weight[o * nrIn + i] = weight_[ro * input_.size() + ri]
+                                    + rndg(Float(0), randomDev);
+    }
+    // assign new weights
+    weight_ = weight;
+    // resize other buffers
+    input_.resize(nrIn); for (auto&f : input_) f = 0;
+    if (biasCell_) input_[input_.size()-1] = 1;
+    output_.resize(nrOut); for (auto&f : output_) f = 0;
+    prevDelta_.resize(nrIn * nrOut); for (auto&f : prevDelta_) f = 0;
+}
+
+MNN_TEMPLATE
 size_t MNN_PERCEPTRON::numIn() const
 {
     return biasCell_? input_.size() - 1 : input_.size();
