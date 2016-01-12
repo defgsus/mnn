@@ -26,6 +26,8 @@ public:
 
 public slots:
 
+    void setZoom(int level);
+
     /** Sets the size/dimension of the display.
         Any pointers given to setStates are dropped */
     void setStateSize(size_t width, size_t height = 1, size_t instances = 1);

@@ -29,7 +29,7 @@ MNN_PERCEPTRON::~Perceptron()
 MNN_TEMPLATE
 void MNN_PERCEPTRON::serialize(std::ostream& s) const
 {
-    s << name();
+    s << id();
     // version
     s << " " << 1;
     // settings
@@ -221,13 +221,13 @@ void MNN_PERCEPTRON::bprop(const Float * error, Float * error_output,
 	}
 
 	// backprob derivative
-	auto w = weight_.begin();
+    auto w = &weight_[0];
+    auto pd = &prevDelta_[0];
 	e = error;
 	for (auto o = output_.begin(); o != output_.end(); ++o, ++e)
 	{
         Float de = ActFunc::derivative(*e, *o);
 
-        Float* pd = &prevDelta_[0];
         for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd)
 		{
             *pd = momentum_ * *pd
@@ -240,6 +240,17 @@ void MNN_PERCEPTRON::bprop(const Float * error, Float * error_output,
 
 
 // ----------- info -----------------------
+
+MNN_TEMPLATE
+Float MNN_PERCEPTRON::getWeightAverage() const
+{
+    Float a = 0.;
+    for (auto w : weight_)
+        a += std::abs(w);
+    if (!weight_.empty())
+        a /= weight_.size();
+    return a;
+}
 
 MNN_TEMPLATE
 void MNN_PERCEPTRON::info(std::ostream &out) const

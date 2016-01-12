@@ -68,11 +68,11 @@ public:
     std::string statusString(size_t index) const
     {
         std::stringstream str;
-        str << "step " << std::left << std::setw(9) << epoch
+        LOG(   "step " << std::left << std::setw(9) << epoch
             << " err " << std::setw(9) << err_min
             << " - " << std::setw(9) << err_max
             << " av " << std::setw(9) << (err_sum / err_count)
-            << " avweight " << rbm_[index]->getWeightAverage();
+            << " avweight " << rbm_[index]->getWeightAverage() );
         return str.str();
     }
 
@@ -114,8 +114,7 @@ public:
     void loadLayer(size_t index)
     {
         rbm_[index]->loadTextFile(layerFilename(index));
-        std::cout << "loaded rbm layer " << index << " ("
-                  << layerFilename(index) << ")\n";
+        LOG("loaded rbm layer " << index << " (" << layerFilename(index) << ")");
         rbm_[index]->info();
     }
 
@@ -191,17 +190,28 @@ public:
 
         sample->err_cd = err;
 
-        if (err_min < 0.)
-            err_min = err;
-        else
-            err_min = std::min(err_min, err);
-        err_max = std::max(err_max, err);
-
-        // CD error of 0. means probably no state at all
-        if (err > 0.)
+        if (epoch % 1000 == 0 && err_min >= 0.)
         {
-            err_sum += err;
-            ++err_count;
+            err_min += .5 * (err - err_min);
+            err_max += .5 * (err - err_max);
+            err_sum = err;
+
+            err_count = 1;
+        }
+        else
+        {
+            if (err_min < 0.)
+                err_min = err;
+            else
+                err_min = std::min(err_min, err);
+            err_max = std::max(err_max, err);
+
+            // CD error of 0. means probably no state at all
+            if (err > 0.)
+            {
+                err_sum += err;
+                ++err_count;
+            }
         }
     }
 };

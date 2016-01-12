@@ -39,6 +39,10 @@ class StackSerial : public Layer<Float>
         { return layer_.back()->outputs(); }
     virtual const Float* weights() const override
         { return layer_.front()->weights(); }
+    virtual Float* weights() override
+        { return layer_.front()->weights(); }
+    virtual void setWeight(size_t input, size_t output, Float w) override
+        { layer_.front()->setWeight(input, output, w); }
 
 	// ------- layer interface ---------------
 
@@ -47,6 +51,9 @@ class StackSerial : public Layer<Float>
 
     /** Adds a new layer, ownership IS TAKEN */
     void add(Layer<Float>* layer);
+
+    /** Inserts a new layer before @p index, ownership IS TAKEN */
+    void insert(size_t index, Layer<Float>* layer);
 
     /** To be called when a layer that has already been added
         has changed it's size. */
@@ -71,6 +78,8 @@ class StackSerial : public Layer<Float>
     virtual const char * name() const override { return "StackSerial"; }
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
+
+    virtual Float getWeightAverage() const override;
 
     // ------------- io ---------------
 

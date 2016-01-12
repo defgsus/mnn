@@ -31,7 +31,7 @@ MNN_RBM::~Rbm()
 MNN_TEMPLATE
 void MNN_RBM::serialize(std::ostream& s) const
 {
-    s << name();
+    s << id();
     // version
     s << " " << 1;
     // settings
@@ -211,11 +211,11 @@ void MNN_RBM::bprop(const Float * error, Float * error_output,
 
     // backprob derivative
     Float* w = &weight_[0];
+    Float* pd = &prevDelta_[0];
     for (auto o = output_.begin(); o != output_.end(); ++o, ++error)
     {
         Float de = ActFunc::derivative(*error, *o);
 
-        Float* pd = &prevDelta_[0];
         for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd)
         {
             *pd = momentum_ * *pd

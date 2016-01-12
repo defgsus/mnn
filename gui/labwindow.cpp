@@ -59,7 +59,7 @@ struct LabWindow::Private
     MnistSet mnist;
 
     QPlainTextEdit * infoWin, * stateWin;
-    StateDisplay * stateDisplay;
+    StateDisplay * stateDisplay, * stateDisplay2;
 };
 
 
@@ -96,6 +96,10 @@ void LabWindow::Private::createWidgets()
 
         stateDisplay = new StateDisplay(win);
         lv->addWidget(stateDisplay);
+
+        stateDisplay2 = new StateDisplay(win);
+        stateDisplay2->setZoom(16);
+        lv->addWidget(stateDisplay2);
 
     // .. menu ..
 
@@ -138,6 +142,10 @@ void LabWindow::Private::updateStates()
     stateDisplay->setInstancesPerRow(20);
     stateDisplay->setStateSize(28, 28, net.numOut());
     stateDisplay->setStates(net.weights());
+
+    stateDisplay2->setInstancesPerRow(20);
+    stateDisplay2->setStateSize(1, 1, net.numOut());
+    stateDisplay2->setStates(net.outputs());
 }
 
 void LabWindow::onNetChanged()
@@ -156,7 +164,7 @@ void LabWindow::Private::setTraining(bool enable)
         thread = new TrainThread(win);
         connect(thread, SIGNAL(rbmChanged()), win, SLOT(onNetChanged()));
 
-        thread->setSize( { mnist.width() * mnist.height(), 10, 10 } );
+        thread->setSize( { mnist.width() * mnist.height(), 4, 10 } );
 
         thread->start();
     }

@@ -261,9 +261,10 @@ void maint()
     l2->setMomentum(.5);
     l3->setMomentum(.5);
 #else
-    auto l1 = new MNN::Perceptron<F, MNN::Activation::Tanh>(10,40, 1);
-    auto l2 = new MNN::Perceptron<F, MNN::Activation::Logistic>(40,10, 1);
-    auto l3 = new MNN::Perceptron<F, MNN::Activation::Linear>(10,10, 0.1);
+    F learnr = 1.;
+    auto l1 = new MNN::Perceptron<F, MNN::Activation::Tanh>(10,40, learnr * 1);
+    auto l2 = new MNN::Perceptron<F, MNN::Activation::Logistic>(40,10, learnr * 1);
+    auto l3 = new MNN::Perceptron<F, MNN::Activation::Linear>(10,10, learnr * 0.1);
     l1->setMomentum(.5);
     l2->setMomentum(.5);
     l3->setMomentum(.5);

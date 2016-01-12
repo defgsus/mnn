@@ -29,7 +29,7 @@ MNN_STACKSERIAL::~StackSerial()
 MNN_TEMPLATE
 void MNN_STACKSERIAL::serialize(std::ostream& s) const
 {
-    s << name();
+    s << id();
     // version
     s << " " << 1;
     // dimension
@@ -130,6 +130,16 @@ void MNN_STACKSERIAL::add(Layer<Float> * layer)
 }
 
 MNN_TEMPLATE
+void MNN_STACKSERIAL::insert(size_t index, Layer<Float> * layer)
+{
+    if (index >= layer_.size())
+        layer_.push_back(layer);
+    else
+        layer_.insert(layer_.begin() + index, layer);
+    resizeBuffers_();
+}
+
+MNN_TEMPLATE
 void MNN_STACKSERIAL::resizeBuffers_()
 {
 	{	// clear buffer (completely)
@@ -150,7 +160,7 @@ void MNN_STACKSERIAL::resizeBuffers_()
 
         // alloc immediate buffer
         if (i < buffer_.size())
-            buffer_[i].resize(layer_[i]->numOut());
+            buffer_[i]. resize(layer_[i]->numOut());
 	}
 
 //	for (auto b = buffer_.begin(); b != buffer_.end(); ++b)
@@ -217,6 +227,17 @@ void MNN_STACKSERIAL::bprop(const Float * error, Float * error_output,
 
 
 // ----------- info -----------------------
+
+MNN_TEMPLATE
+Float MNN_STACKSERIAL::getWeightAverage() const
+{
+    Float a = 0.;
+    for (auto l : layer_)
+        a += l->getWeightAverage();
+    if (!layer_.empty())
+        a /= layer_.size();
+    return a;
+}
 
 MNN_TEMPLATE
 void MNN_STACKSERIAL::info(std::ostream &out) const

@@ -102,6 +102,11 @@ void StateDisplay::Private::createWidgets()
             lh->addWidget(spinAmp);
 }
 
+void StateDisplay::setZoom(int level)
+{
+    p_->spinZoom->setValue(level);
+}
+
 void StateDisplay::Private::setSize(const QSize& s, size_t numI)
 {
     if (s == size && numInstances == numI)

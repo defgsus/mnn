@@ -104,6 +104,8 @@ class Layer
     virtual const Float* outputs() const = 0;
     /** Return pointer to continous weight values */
     virtual const Float* weights() const = 0;
+    /** Return pointer to continous weight values */
+    virtual Float* weights() = 0;
 
     /** Wrapper around inputs() */
     virtual Float input(size_t index) const { return inputs()[index]; }
@@ -112,6 +114,9 @@ class Layer
     /** Wrapper around weights(), returns weight between given input and output cell */
     virtual Float weight(size_t input, size_t output) const
         { return weights()[output * numIn() + input]; }
+    /** Sets a specific weight between input and output cell */
+    virtual void setWeight(size_t input, size_t output, Float w)
+        { weights()[output * numIn() + input] = w; }
 
     // ---- propagation -------
 
@@ -140,6 +145,9 @@ class Layer
 
     /** Print (complete) internal data */
 	virtual void dump(std::ostream &out = std::cout) const = 0;
+
+    /** Return the average of the absolute weights */
+    virtual Float getWeightAverage() const = 0;
 
     // ------------- io ---------------
 

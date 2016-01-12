@@ -67,8 +67,23 @@ struct Logistic : public Base
     template <typename Float>
     static Float derivative(Float error, Float state)
         { const Float e = std::exp(state);
-            return (e / std::pow(Float(1) + e, Float(2))) * error; }
+            return (e / std::pow(Float(1) + e, Float(2))) * Float(2) * error; }
 #endif
+};
+
+/** Logistic activation centered around 0.0 */
+struct LogisticSymmetric : public Base
+{
+    static const char * static_name() { return "logistic_symmetric"; }
+    virtual const char * name() const { return static_name(); }
+
+    template <typename Float>
+    static Float activation(Float in)
+        { return Float(-1.) + Float(2.)/(Float(1.) + std::exp(-in)); }
+
+    template <typename Float>
+    static Float derivative(Float error, Float state)
+        { return error * (Float(1.) - state * state); }
 };
 
 /** logistic10 activation */

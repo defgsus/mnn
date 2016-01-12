@@ -31,7 +31,7 @@ TrainThread::~TrainThread()
 TrainThread::NetType TrainThread::getNetCopy(size_t index) const
 {
     QReadLocker lock(mutex_);
-    auto n = rbms.rbm(index);
+    auto n = rbms_.rbm(index);
     if (n)
         return *n;
     NetType net(1,1);
@@ -50,32 +50,34 @@ void TrainThread::run()
 
     while (doRun_)
     {
+        msleep(2);
+        QWriteLocker lock(mutex_);
+
         // update number cells
         if (!sizeRequest_.empty())
         {
             sizeRequest_[0] = mnist.width() * mnist.height();
 
-            rbms.setSize(sizeRequest_);
+            rbms_.setSize(sizeRequest_);
             sizeRequest_.clear();
 
             // copy samples
             for (size_t i=0; i<mnist.numSamples(); ++i)
-                rbms.addSample(mnist.image(i));
+                rbms_.addSample(mnist.image(i));
 
             emit rbmChanged();
         }
 
-        if (doPause_ || rbms.samples().empty())
+        if (doPause_ || rbms_.samples().empty())
         {
             msleep(50);
             continue;
         }
 
-        msleep(2);
-        QWriteLocker lock(mutex_);
+        // -- training step --
 
-        for (int i=0; i<10; ++i)
-            rbms.trainStep(trainLayerIndex_);
+        for (int i=0; i<16; ++i)
+            rbms_.trainStep(trainLayerIndex_);
     }
 }
 

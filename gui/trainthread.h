@@ -30,7 +30,7 @@ public:
     TrainThread(QObject * parent);
     ~TrainThread();
 
-    const StackType& rbmStack() const { return rbms; }
+    const StackType& rbmStack() const { return rbms_; }
     // locked access
     NetType getNetCopy(size_t index) const;
 
@@ -49,7 +49,7 @@ protected:
 
     void run() override;
 
-    StackType rbms;
+    StackType rbms_;
 
     volatile bool doRun_, doPause_;
     volatile size_t trainLayerIndex_;

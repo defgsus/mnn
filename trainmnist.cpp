@@ -35,7 +35,7 @@ struct TrainMnist::Private
     MNN::StackSerial<Float> net;
     std::vector<Float> bufIn, bufExp, bufOut, bufErr;
     std::vector<size_t> errorsPerClass;
-    Float error, error_min, error_max, error_sum;
+    Float learnRate, error, error_min, error_max, error_sum;
     size_t epoch, error_count;
 };
 
@@ -103,11 +103,21 @@ void TrainMnist::Private::createNet()
     bufErr.resize(numOut);
     errorsPerClass.resize(numOut);
 
+#if 0
     auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 200);
     //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
+    //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
     auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(200, numOut, 1., true);
-
-    net.brainwash();
+    learnRate = 0.9;
+#else
+    auto l1 = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
+                trainSet.width(), trainSet.height(), 5, 5);
+    auto l2 = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
+                l1->scanWidth(), l1->scanHeight(), 5, 5);
+    //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
+    auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(l2->numOut(), numOut, 1., true);
+    learnRate = 0.001;
+#endif
 
     // load previous
 #if 0
@@ -117,15 +127,21 @@ void TrainMnist::Private::createNet()
     l2->loadTextFile("../rbm_layer_1_200h.txt");
 #endif
 
-    l1->setMomentum(.2);
-    //l2->setMomentum(.5);
+    l1->setMomentum(.7);
+    l2->setMomentum(.8);
     l3->setMomentum(.9);
     net.add( l1 );
-    //net.add( l2 );
+    net.add( l2 );
     net.add( l3 );
 
+    net.brainwash();
+
 #if 0
-    net.loadTextFile("../mnist_e1000_stack.txt");
+    net.loadTextFile("../mnist_e500_stack.txt");
+    size_t num = net.layer(0)->numOut();
+    auto ln = new MNN::Rbm<Float, MNN::Activation::Linear>(num, num, 0.01);
+    MNN::initPassThrough(ln);
+    net.insert(1, ln);
 #endif
 
 }
@@ -152,12 +168,16 @@ void TrainMnist::Private::train()
         if (epoch % 60000 == 0)
         {
             testPerformance();
-#if 1
+#if 0
             // save when error < x
             if (error_count < 100)
                 saveAllLayers("../mnist_e100");
             else if (error_count < 200)
                 saveAllLayers("../mnist_e200");
+            else if (error_count < 300)
+                saveAllLayers("../mnist_e300");
+            else if (error_count < 400)
+                saveAllLayers("../mnist_e400");
             else if (error_count < 500)
                 saveAllLayers("../mnist_e500");
             else if (error_count < 1000)
@@ -177,17 +197,19 @@ void TrainMnist::Private::train()
             for (size_t j=0; j<errorsPerClass.size(); ++j)
                 std::cout << " " << std::setw(3) << errorsPerClass[j];
             std::cout << ", % " << error_percent
+                      << ", avw " << net.getWeightAverage()
                       << std::endl;
 
             clearErrorCount();
-
+#if 0
             if (error_percent < 20 && doGrow)
             {
-                net.layer(0)->grow(net.layer(0)->numIn(), 500, 0.05);
+                net.layer(0)->grow(net.layer(0)->numIn(), 1000, 0.05);
                 net.updateLayers();
                 net.info();
                 doGrow = false;
             }
+#endif
         }
     }
 }
@@ -217,8 +239,8 @@ void TrainMnist::Private::trainLabelStep()
 
         // prepare expected output
         for (auto& f : bufExp)
-            f = 0.0;
-        bufExp[label] = .9;
+            f = 0.2;
+        bufExp[label] = .8;
 
     #if 0
         net.fprop(image, &bufOut[0]);
@@ -250,7 +272,7 @@ void TrainMnist::Private::trainLabelStep()
 //        e = e * (Float(1) - e);
 
     // learn
-    net.bprop(&bufErr[0], NULL, 0.9);
+    net.bprop(&bufErr[0], NULL, learnRate);
 }
 
 int TrainMnist::Private::getLabelError(int label)

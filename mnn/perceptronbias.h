@@ -47,6 +47,7 @@ class PerceptronBias : public Layer<Float>
     virtual const Float* inputs() const override { return &input_[0]; }
     virtual const Float* outputs() const override { return &output_[0]; }
     virtual const Float* weights() const override { return &weight_[0]; }
+    virtual Float* weights() override { return &weight_[0]; }
 
     // ------- propagation -------------------
 
@@ -61,6 +62,8 @@ class PerceptronBias : public Layer<Float>
     virtual const char * name() const override { return "PerceptronBias"; }
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
+
+    virtual Float getWeightAverage() const override;
 
     // ------------- io ---------------
 

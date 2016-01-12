@@ -25,9 +25,9 @@ public:
     uint32_t height() const { return p_height_; }
     uint32_t numSamples() const { return p_labels_.size(); }
 
-    uint8_t label(uint32_t index) const { return p_labels_[index]; }
-    const float* image(uint32_t index) const
-        { return &p_images_[index * width() * height()]; }
+          uint8_t label(uint32_t index) const { return p_labels_[index]; }
+    const float*  image(uint32_t index) const {
+                                    return &p_images_[index * width() * height()]; }
 
     // ------------- io -------------
 

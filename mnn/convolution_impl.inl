@@ -1,27 +1,42 @@
-/**	@file perceptronbias_impl.inl
+/** @file convolution_impl.inl
 
-    @brief PerceptronBias implementation
+    @brief
 
-    <p>(c) 2015, stefan.berke@modular-audio-graphics.com</p>
+    <p>(c) 2016, stefan.berke@modular-audio-graphics.com</p>
     <p>All rights reserved</p>
 
-    <p>created 12/21/2015</p>
+    <p>created 1/11/2016</p>
+
+
+    input      kernel    output
+
+    x x x x    x x       input - kernel + 1
+
+    x x x x    x x
+
+    x x x x
+
+
 */
 
+
+
+
 #define MNN_TEMPLATE template <typename Float, class ActFunc>
-#define MNN_PERCEPTRONBIAS PerceptronBias<Float, ActFunc>
+#define MNN_CONVOLUTION Convolution<Float, ActFunc>
 
 MNN_TEMPLATE
-MNN_PERCEPTRONBIAS::PerceptronBias(size_t nrIn, size_t nrOut, Float learnRate)
+MNN_CONVOLUTION::Convolution(size_t inputWidth, size_t inputHeight,
+                             size_t kernelWidth, size_t kernelHeight,
+                             Float learnRate)
     : learnRate_	(learnRate)
-    , learnRateBias_(.1)
     , momentum_     (.1)
 {
-    resize(nrIn, nrOut);
+    resize(inputWidth, inputHeight, kernelWidth, kernelHeight);
 }
 
 MNN_TEMPLATE
-MNN_PERCEPTRONBIAS::~PerceptronBias()
+MNN_CONVOLUTION::~Convolution()
 {
 
 }
@@ -29,7 +44,7 @@ MNN_PERCEPTRONBIAS::~PerceptronBias()
 // ---------------- io -------------------
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::serialize(std::ostream& s) const
+void MNN_CONVOLUTION::serialize(std::ostream& s) const
 {
     s << id();
     // version
@@ -37,17 +52,15 @@ void MNN_PERCEPTRONBIAS::serialize(std::ostream& s) const
     // settings
     s << " " << learnRate_ << " " << momentum_;
     // dimension
-    s << " " << numIn() << " " << numOut();
-    // bias
-    for (auto b : bias_)
-        s << " " << b;
+    s << " " << inputWidth_ << " " << inputHeight_
+      << " " << kernelWidth_ << " " << kernelHeight_;
     // weights
     for (auto w : weight_)
         s << " " << w;
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::deserialize(std::istream& s)
+void MNN_CONVOLUTION::deserialize(std::istream& s)
 {
     std::string str;
     s >> str;
@@ -63,12 +76,9 @@ void MNN_PERCEPTRONBIAS::deserialize(std::istream& s)
     // settings
     s >> learnRate_ >> momentum_;
     // dimension
-    size_t numIn, numOut;
-    s >> numIn >> numOut;
-    resize(numIn, numOut);
-    // bias
-    for (auto& b : bias_)
-        s >> b;
+    size_t iw, ih, kw, kh;
+    s >> iw >> ih >> kw >> kh;
+    resize(iw, ih, kw, kh);
     // weights
     for (auto& w : weight_)
         s >> w;
@@ -78,20 +88,33 @@ void MNN_PERCEPTRONBIAS::deserialize(std::istream& s)
 // ----------- nn interface --------------
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::resize(size_t nrIn, size_t nrOut)
+void MNN_CONVOLUTION::resize(size_t inputWidth, size_t inputHeight,
+                             size_t kernelWidth, size_t kernelHeight)
 {
-    input_.resize(nrIn);
-    bias_.resize(nrIn);
-    output_.resize(nrOut);
-    weight_.resize(nrIn * nrOut);
-    prevDelta_.resize(nrIn * nrOut);
-}
+    assert(kernelWidth <= inputWidth && kernelHeight <= inputHeight
+           && "input smaller than kernel size, in Convolution layer");
 
+    inputWidth_ = inputWidth;
+    inputHeight_ = inputHeight;
+    kernelWidth_ = kernelWidth;
+    kernelHeight_ = kernelHeight;
+    scanWidth_ = inputWidth_ - kernelWidth_ + 1;
+    scanHeight_ = inputHeight_ - kernelHeight_ + 1;
+
+    input_.resize(inputWidth_ * inputHeight_);
+    output_.resize(scanWidth_ * scanHeight_);
+    weight_.resize(kernelWidth * kernelHeight);
+    prevDelta_.resize(weight_.size());
+}
+/*
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::grow(size_t nrIn, size_t nrOut, Float randomDev)
+void MNN_CONVOLUTION::grow(size_t nrIn, size_t nrOut, Float randomDev)
 {
     if (nrIn < numIn() || nrOut < numOut())
         return;
+
+    if (biasCell_)
+        ++nrIn;
 
     // copy weights
     std::vector<Float>
@@ -127,43 +150,41 @@ void MNN_PERCEPTRONBIAS::grow(size_t nrIn, size_t nrOut, Float randomDev)
     weight_ = weight;
     // resize other buffers
     input_.resize(nrIn); for (auto&f : input_) f = 0;
+    if (biasCell_) input_[input_.size()-1] = 1;
     output_.resize(nrOut); for (auto&f : output_) f = 0;
     prevDelta_.resize(nrIn * nrOut); for (auto&f : prevDelta_) f = 0;
 }
+*/
 
 MNN_TEMPLATE
-size_t MNN_PERCEPTRONBIAS::numIn() const
+size_t MNN_CONVOLUTION::numIn() const
 {
     return input_.size();
 }
 
 MNN_TEMPLATE
-size_t MNN_PERCEPTRONBIAS::numOut() const
+size_t MNN_CONVOLUTION::numOut() const
 {
     return output_.size();
 }
 
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::brainwash()
+void MNN_CONVOLUTION::brainwash()
 {
     // reset in/out
-    for (auto& f : input_)
-        f = 0.;
-    for (auto& f : output_)
-        f = 0.;
-    // reset cells bias
-    for (auto& f : bias_)
-        f = 0.;
+    for (auto& e : input_)
+        e = 0.0;
+    for (auto& e : output_)
+        e = 0.0;
 
     if (input_.empty() || output_.empty())
         return;
 
     // randomize weights (assume normalized states)
-    Float f = 1.0 / std::sqrt(input_.size());
-    //Float f = 1.0 / input_.size();
-    for (auto e = weight_.begin(); e != weight_.end(); ++e)
-        *e = rnd(-f, f);
+    Float f = 1. / std::sqrt(kernelWidth_ * kernelHeight_);
+    for (auto& w : weight_)
+        w = rnd(-f, f);
 
     // reset momentum
     for (auto& f : prevDelta_)
@@ -174,21 +195,23 @@ void MNN_PERCEPTRONBIAS::brainwash()
 // ----------- propagation ---------------
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
+void MNN_CONVOLUTION::fprop(const Float * input, Float * output)
 {
     // copy to internal data
-    for (auto i = input_.begin(); i != input_.end(); ++i, ++input)
-        *i = *input;
+    for (size_t i=0; i<input_.size(); ++i, ++input)
+        input_[i] = *input;
 
     // propagate
-    auto w = weight_.begin();
-    for (auto o = output_.begin(); o != output_.end(); ++o)
+    auto o = &output_[0];
+    for (size_t sy = 0; sy < scanHeight_; ++sy)
+    for (size_t sx = 0; sx < scanWidth_; ++sx, ++o)
     {
+        auto w = weight_.begin();
         Float sum = 0;
-        const Float* bias = &bias_[0];
-        for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++bias)
+        for (size_t iy = 0; iy < kernelHeight_; ++iy)
+        for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w)
         {
-            sum += (*i + *bias) * *w;
+            sum += input_[(sy + iy) * inputWidth_ + sx + ix] * *w;
         }
 
         *o = ActFunc::activation(sum);
@@ -200,7 +223,7 @@ void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
 
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
+void MNN_CONVOLUTION::bprop(const Float * error, Float * error_output,
                            Float global_learn_rate)
 {
     global_learn_rate *= learnRate_;
@@ -209,34 +232,43 @@ void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
 
     // pass error through
     if (error_output)
-    for (size_t i = 0; i<input_.size(); ++i, ++error_output)
     {
-        Float sum = 0;
-        e = error;
-        for (size_t o = 0; o < output_.size(); ++o, ++e)
+        for (size_t i=0; i<numIn(); ++i)
+            error_output[i] = 0.;
+
+        // accumulate into input field
+        for (size_t sy = 0; sy < scanHeight_; ++sy)
+        for (size_t sx = 0; sx < scanWidth_; ++sx, ++error_output)
         {
-            sum += *e * weight_[o * input_.size() + i];
+            auto w = weight_.begin();
+            auto e = error;
+            for (size_t iy = 0; iy < kernelHeight_; ++iy)
+            for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w, ++e)
+            {
+                error_output[(sy + iy) * inputWidth_ + sx + ix]
+                        += *e * *w;
+            }
         }
-        *error_output = sum;
     }
 
     // backprob derivative
+    auto o = &output_[0];
     e = error;
-    Float* w = &weight_[0];
-    for (auto o = output_.begin(); o != output_.end(); ++o, ++e)
+    for (size_t sy = 0; sy < scanHeight_; ++sy)
+    for (size_t sx = 0; sx < scanWidth_; ++sx, ++o)
     {
         Float de = ActFunc::derivative(*e, *o);
 
-        Float* pd = &prevDelta_[0];
-        Float* bias = &bias_[0];
-        for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd, ++bias)
+        auto w = &weight_[0];
+        auto pd = &prevDelta_[0];
+        for (size_t iy = 0; iy < kernelHeight_; ++iy)
+        for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w, ++pd)
         {
             *pd = momentum_ * *pd
-                + global_learn_rate * de * *i;
+                + global_learn_rate * de
+                    * input_[(sy + iy) * inputWidth_ + sx + ix];
             *w += *pd;
-            *bias += learnRateBias_ * global_learn_rate * de;
         }
-
     }
 }
 
@@ -244,7 +276,7 @@ void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
 // ----------- info -----------------------
 
 MNN_TEMPLATE
-Float MNN_PERCEPTRONBIAS::getWeightAverage() const
+Float MNN_CONVOLUTION::getWeightAverage() const
 {
     Float a = 0.;
     for (auto w : weight_)
@@ -255,26 +287,23 @@ Float MNN_PERCEPTRONBIAS::getWeightAverage() const
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::info(std::ostream &out) const
+void MNN_CONVOLUTION::info(std::ostream& out) const
 {
     out <<   "name       : " << name()
-        << "\nlearnrate  : " << learnRate_ << " (bias: " << learnRateBias_ << ")"
+        << "\nlearnrate  : " << learnRate_
         << "\nmomentum   : " << momentum_
-        << "\ninputs     : " << numIn()
+        << "\ninputs     : " << numIn() << " (" << inputWidth_ << "x" << inputHeight_ << ")"
         << "\noutputs    : " << numOut()
+        << "\nkernel     : " << kernelWidth_ << "x" << kernelHeight_
         << "\nactivation : " << ActFunc::static_name()
         << "\n";
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::dump(std::ostream &out) const
+void MNN_CONVOLUTION::dump(std::ostream &out) const
 {
     out << "inputs:";
     for (auto e = input_.begin(); e != input_.end(); ++e)
-        out << " " << *e;
-
-    out << "\nbias:";
-    for (auto e = bias_.begin(); e != bias_.end(); ++e)
         out << " " << *e;
 
     out << "\noutputs:";
@@ -294,5 +323,6 @@ void MNN_PERCEPTRONBIAS::dump(std::ostream &out) const
 
 
 #undef MNN_TEMPLATE
-#undef MNN_PERCEPTRONBIAS
+#undef MNN_CONVOLUTION
+
 

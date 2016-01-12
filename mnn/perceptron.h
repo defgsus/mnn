@@ -39,9 +39,12 @@ class Perceptron : public Layer<Float>
     virtual const Float* inputs() const override { return &input_[0]; }
     virtual const Float* outputs() const override { return &output_[0]; }
     virtual const Float* weights() const override { return &weight_[0]; }
+    virtual Float* weights() override { return &weight_[0]; }
 
     virtual Float weight(size_t input, size_t output) const override
         { return weights()[output * input_.size() + input]; }
+    virtual void setWeight(size_t input, size_t output, Float w) override
+        { weights()[output * input_.size() + input] = w; }
 
 	// ------- propagation -------------------
 
@@ -56,6 +59,8 @@ class Perceptron : public Layer<Float>
     virtual const char * name() const override { return "Perceptron"; }
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
+
+    virtual Float getWeightAverage() const override;
 
     // ------------- io ---------------
 
