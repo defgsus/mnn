@@ -170,7 +170,7 @@ size_t MNN_CONVOLUTION::numOut() const
 
 
 MNN_TEMPLATE
-void MNN_CONVOLUTION::brainwash()
+void MNN_CONVOLUTION::brainwash(Float amp)
 {
     // reset in/out
     for (auto& e : input_)
@@ -178,11 +178,11 @@ void MNN_CONVOLUTION::brainwash()
     for (auto& e : output_)
         e = 0.0;
 
-    if (input_.empty() || output_.empty())
+    if (kernelWidth_ == 0 || kernelHeight_ == 0)
         return;
 
     // randomize weights (assume normalized states)
-    Float f = 1. / std::sqrt(kernelWidth_ * kernelHeight_);
+    Float f = amp / std::sqrt(kernelWidth_ * kernelHeight_);
     for (auto& w : weight_)
         w = rnd(-f, f);
 
@@ -231,19 +231,19 @@ void MNN_CONVOLUTION::bprop(const Float * error, Float * error_output,
     const Float * e;
 
     // pass error through
+    // by accumulating into input field
     if (error_output)
     {
         for (size_t i=0; i<numIn(); ++i)
             error_output[i] = 0.;
 
-        // accumulate into input field
+        auto e = error;
         for (size_t sy = 0; sy < scanHeight_; ++sy)
-        for (size_t sx = 0; sx < scanWidth_; ++sx, ++error_output)
+        for (size_t sx = 0; sx < scanWidth_; ++sx, ++e)
         {
-            auto w = weight_.begin();
-            auto e = error;
+            auto w = &weight_[0];
             for (size_t iy = 0; iy < kernelHeight_; ++iy)
-            for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w, ++e)
+            for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w)
             {
                 error_output[(sy + iy) * inputWidth_ + sx + ix]
                         += *e * *w;

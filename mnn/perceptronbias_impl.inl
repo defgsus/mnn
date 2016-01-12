@@ -145,7 +145,7 @@ size_t MNN_PERCEPTRONBIAS::numOut() const
 
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::brainwash()
+void MNN_PERCEPTRONBIAS::brainwash(Float amp)
 {
     // reset in/out
     for (auto& f : input_)
@@ -160,8 +160,7 @@ void MNN_PERCEPTRONBIAS::brainwash()
         return;
 
     // randomize weights (assume normalized states)
-    Float f = 1.0 / std::sqrt(input_.size());
-    //Float f = 1.0 / input_.size();
+    Float f = amp / std::sqrt(input_.size());
     for (auto e = weight_.begin(); e != weight_.end(); ++e)
         *e = rnd(-f, f);
 

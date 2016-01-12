@@ -109,15 +109,6 @@ void TrainMnist::Private::createNet()
     //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
     auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(200, numOut, 1., true);
     learnRate = 0.9;
-#else
-    auto l1 = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
-                trainSet.width(), trainSet.height(), 5, 5);
-    auto l2 = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
-                l1->scanWidth(), l1->scanHeight(), 5, 5);
-    //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
-    auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(l2->numOut(), numOut, 1., true);
-    learnRate = 0.001;
-#endif
 
     // load previous
 #if 0
@@ -128,10 +119,10 @@ void TrainMnist::Private::createNet()
 #endif
 
     l1->setMomentum(.7);
-    l2->setMomentum(.8);
+//    l2->setMomentum(.8);
     l3->setMomentum(.9);
     net.add( l1 );
-    net.add( l2 );
+//    net.add( l2 );
     net.add( l3 );
 
     net.brainwash();
@@ -144,6 +135,40 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);
 #endif
 
+#else
+    // ----- deep convolution -------
+
+    // first layer
+    auto l1 = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
+                    trainSet.width(), trainSet.height(), 2, 2);
+    l1->setMomentum(.9);
+    net.add(l1);
+    auto lprev = l1;
+    for (int i = 0; i < 1; ++i)
+    {
+        if (lprev->kernelWidth() * 2 > lprev->scanWidth())
+            break;
+        auto lx = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
+                   lprev->scanWidth(), lprev->scanHeight(),
+                   lprev->kernelWidth() * 2, lprev->kernelHeight() * 2);
+        lx->setMomentum(.9);
+        net.add(lx);
+        lprev = lx;
+    }
+    auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    lout->setMomentum(.9);
+    net.add(lout);
+    //auto lout2 = new MNN::Perceptron<Float, MNN::Activation::Linear>(lout->numOut(), numOut, 0.1);
+    //lout2->setMomentum(.9);
+    //net.add(lout2);
+
+    learnRate = 0.001;
+
+    net.brainwash(0.1);
+#endif
+
+
+    assert(net.numOut() == 10);
 }
 
 void TrainMnist::Private::train()
@@ -154,7 +179,7 @@ void TrainMnist::Private::train()
     testPerformance();
     clearErrorCount();
 
-    bool doGrow = true;
+//    bool doGrow = true;
 
     epoch = 0;
     while (true)

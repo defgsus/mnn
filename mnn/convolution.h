@@ -43,7 +43,7 @@ class Convolution : public Layer<Float>
         { assert(!"Can't use this resize function"); (void)numIn; (void)numOut; }
     virtual void grow(size_t nrIn, size_t nrOut, Float randomDev) override
         { assert(!"Can't use the grow function"); (void)nrIn; (void)nrOut; (void)randomDev; }
-    virtual void brainwash() override;
+    virtual void brainwash(Float variance = 1.) override;
 
     virtual size_t inputWidth() const { return inputWidth_; }
     virtual size_t inputHeight() const { return inputHeight_; }

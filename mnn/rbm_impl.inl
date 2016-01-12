@@ -148,7 +148,7 @@ size_t MNN_RBM::numOut() const
 
 
 MNN_TEMPLATE
-void MNN_RBM::brainwash()
+void MNN_RBM::brainwash(Float amp)
 {
     // reset in/out
     for (auto e = input_.begin(); e != input_.end(); ++e)
@@ -163,8 +163,7 @@ void MNN_RBM::brainwash()
         input_.back() = 1.;
 
     // randomize weights (assume normalized states)
-    Float f = 1.0 / std::sqrt(input_.size());
-    //Float f = 1.0 / input_.size();
+    Float f = amp / std::sqrt(input_.size());
     for (auto& w : weight_)
         w = rnd(-f, f);
 

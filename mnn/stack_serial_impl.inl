@@ -108,10 +108,10 @@ size_t MNN_STACKSERIAL::numOut() const
 
 
 MNN_TEMPLATE
-void MNN_STACKSERIAL::brainwash()
+void MNN_STACKSERIAL::brainwash(Float amp)
 {
 	for (auto l = layer_.begin(); l != layer_.end(); ++l)
-		(*l)->brainwash();
+        (*l)->brainwash(amp);
 }
 
 // ----------- layer interface -----------
