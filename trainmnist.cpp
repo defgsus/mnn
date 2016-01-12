@@ -135,11 +135,14 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);
 #endif
 
-#else
+#elif 0
     // ----- deep convolution -------
 
+    //typedef MNN::Activation::LinearRectified ConvAct;
+    typedef MNN::Activation::Tanh ConvAct;
+
     // first layer
-    auto l1 = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
+    auto l1 = new MNN::Convolution<Float, ConvAct>(
                     trainSet.width(), trainSet.height(), 2, 2);
     l1->setMomentum(.9);
     net.add(l1);
@@ -148,7 +151,7 @@ void TrainMnist::Private::createNet()
     {
         if (lprev->kernelWidth() * 2 > lprev->scanWidth())
             break;
-        auto lx = new MNN::Convolution<Float, MNN::Activation::LinearRectified>(
+        auto lx = new MNN::Convolution<Float, ConvAct>(
                    lprev->scanWidth(), lprev->scanHeight(),
                    lprev->kernelWidth() * 2, lprev->kernelHeight() * 2);
         lx->setMomentum(.9);
@@ -165,6 +168,33 @@ void TrainMnist::Private::createNet()
     learnRate = 0.001;
 
     net.brainwash(0.1);
+#else
+    // ---------- parallel convolution ------------
+
+    typedef MNN::Activation::LinearRectified ConvAct;
+    //typedef MNN::Activation::Tanh ConvAct;
+
+    auto stack = new MNN::StackParallel<Float>;
+
+    {
+        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 2, 2);
+        l1->setMomentum(.9);
+        stack->add(l1);
+    }
+    {
+        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 10, 10);
+        l1->setMomentum(.9);
+        stack->add(l1);
+    }
+    net.add(stack);
+    auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    lout->setMomentum(.9);
+    net.add(lout);
+
+    learnRate = 0.0005;
+
+    net.brainwash(0.1);
+
 #endif
 
 

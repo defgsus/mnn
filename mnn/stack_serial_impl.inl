@@ -103,15 +103,15 @@ size_t MNN_STACKSERIAL::numIn() const
 MNN_TEMPLATE
 size_t MNN_STACKSERIAL::numOut() const
 {
-    return (layer_.empty())? 0 : layer_[layer_.size()-1]->numOut();
+    return (layer_.empty())? 0 : layer_.back()->numOut();
 }
 
 
 MNN_TEMPLATE
 void MNN_STACKSERIAL::brainwash(Float amp)
 {
-	for (auto l = layer_.begin(); l != layer_.end(); ++l)
-        (*l)->brainwash(amp);
+    for (auto l : layer_)
+        l->brainwash(amp);
 }
 
 // ----------- layer interface -----------

@@ -181,8 +181,8 @@ void MNN_CONVOLUTION::brainwash(Float amp)
     if (kernelWidth_ == 0 || kernelHeight_ == 0)
         return;
 
-    // randomize weights (assume normalized states)
-    Float f = amp / std::sqrt(kernelWidth_ * kernelHeight_);
+    // randomize weights
+    Float f = amp / (kernelWidth_ * kernelHeight_);
     for (auto& w : weight_)
         w = rnd(-f, f);
 

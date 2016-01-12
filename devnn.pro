@@ -24,7 +24,8 @@ SOURCES += \
     mnn/perceptron_impl.inl \
     mnn/perceptronbias_impl.inl \
     mnn/rbm_impl.inl \
-    mnn/convolution_impl.inl
+    mnn/convolution_impl.inl \
+    mnn/stack_parallel_impl.inl
 
 HEADERS += \
     trainposition.h \
@@ -40,7 +41,8 @@ HEADERS += \
     mnn/rbm.h \
     mnn/exception.h \
     printstate.h \
-    mnn/convolution.h
+    mnn/convolution.h \
+    mnn/stack_parallel.h
 
 OTHER_FILES += \
     .gitignore \
