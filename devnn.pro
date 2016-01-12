@@ -42,7 +42,8 @@ HEADERS += \
     mnn/exception.h \
     printstate.h \
     mnn/convolution.h \
-    mnn/stack_parallel.h
+    mnn/stack_parallel.h \
+    generate_input.h
 
 OTHER_FILES += \
     .gitignore \

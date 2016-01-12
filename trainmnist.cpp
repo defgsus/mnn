@@ -15,13 +15,17 @@
 #include "mnn/mnn.h"
 #include "mnistset.h"
 #include "printstate.h"
+#include "generate_input.h"
 
 struct TrainMnist::Private
 {
+    typedef float Float;
+
     void loadSet();
     void saveAllLayers(const std::string& postfix);
     void createNet();
     void clearErrorCount();
+    void prepareExpectedOutput(std::vector<Float>& v, uint8_t label) const;
     void train();
     void trainLabelStep();
     /** Runs all test images and gathers errors */
@@ -29,7 +33,7 @@ struct TrainMnist::Private
     /** Gets error and stats, returns label from net */
     int getLabelError(int label);
 
-    typedef float Float;
+    void runInputApproximation();
 
     MnistSet trainSet, testSet;
     MNN::StackSerial<Float> net;
@@ -103,7 +107,7 @@ void TrainMnist::Private::createNet()
     bufErr.resize(numOut);
     errorsPerClass.resize(numOut);
 
-#if 0
+#if 1
     auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 200);
     //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
     //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
@@ -129,31 +133,36 @@ void TrainMnist::Private::createNet()
 
 #if 0
     net.loadTextFile("../mnist_e500_stack.txt");
-    size_t num = net.layer(0)->numOut();
+    //runInputApproximation();
+    /*size_t num = net.layer(0)->numOut();
     auto ln = new MNN::Rbm<Float, MNN::Activation::Linear>(num, num, 0.01);
     MNN::initPassThrough(ln);
-    net.insert(1, ln);
+    net.insert(1, ln);*/
 #endif
 
 #elif 0
     // ----- deep convolution -------
 
     //typedef MNN::Activation::LinearRectified ConvAct;
-    typedef MNN::Activation::Tanh ConvAct;
+    typedef MNN::Activation::Linear ConvAct;
+    //typedef MNN::Activation::Tanh ConvAct;
 
     // first layer
     auto l1 = new MNN::Convolution<Float, ConvAct>(
-                    trainSet.width(), trainSet.height(), 2, 2);
+                    trainSet.width(), trainSet.height(), 25, 25);
     l1->setMomentum(.9);
     net.add(l1);
     auto lprev = l1;
-    for (int i = 0; i < 1; ++i)
+    for (int i = 0; i < 3; ++i)
     {
-        if (lprev->kernelWidth() * 2 > lprev->scanWidth())
+        size_t newSize = 2;//lprev->kernelWidth() / 3;
+        if (newSize > lprev->scanWidth()
+            || newSize == lprev->kernelWidth()
+            || newSize < 2)
             break;
         auto lx = new MNN::Convolution<Float, ConvAct>(
                    lprev->scanWidth(), lprev->scanHeight(),
-                   lprev->kernelWidth() * 2, lprev->kernelHeight() * 2);
+                   newSize, newSize);
         lx->setMomentum(.9);
         net.add(lx);
         lprev = lx;
@@ -165,9 +174,38 @@ void TrainMnist::Private::createNet()
     //lout2->setMomentum(.9);
     //net.add(lout2);
 
-    learnRate = 0.001;
+    learnRate = 0.0001;
 
-    net.brainwash(0.1);
+    net.brainwash(0.5);
+#elif 0
+
+    // ----- convolution -------
+
+    //typedef MNN::Activation::LinearRectified ConvAct;
+    typedef MNN::Activation::Linear ConvAct;
+    //typedef MNN::Activation::Tanh ConvAct;
+
+    auto l1 = new MNN::Convolution<Float, ConvAct>(
+                    trainSet.width(), trainSet.height(), 10, 10);
+    l1->setMomentum(.9);
+    net.add(l1);
+    auto lprev = l1;
+
+    {
+        auto l = lprev = new MNN::Convolution<Float, ConvAct>(
+                            lprev->scanWidth(), lprev->scanHeight(),
+                            9, 9);
+        l->setMomentum(.9);
+        net.add(l);
+    }
+    auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    lout->setMomentum(.9);
+    net.add(lout);
+
+    learnRate = 0.0001;
+
+    net.brainwash(0.5);
+
 #else
     // ---------- parallel convolution ------------
 
@@ -177,16 +215,28 @@ void TrainMnist::Private::createNet()
     auto stack = new MNN::StackParallel<Float>;
 
     {
-        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 2, 2);
+        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 1, 1);
         l1->setMomentum(.9);
         stack->add(l1);
     }
     {
-        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 10, 10);
+        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 3, 3);
+        l1->setMomentum(.9);
+        stack->add(l1);
+    }
+    if (0)
+    {
+        auto l1 = new MNN::Perceptron<Float, ConvAct>(trainSet.width()*trainSet.height(), 50);
         l1->setMomentum(.9);
         stack->add(l1);
     }
     net.add(stack);
+    if (0)
+    {
+        auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), 100);
+        lout->setMomentum(.9);
+        net.add(lout);
+    }
     auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
     net.add(lout);
@@ -217,6 +267,12 @@ void TrainMnist::Private::train()
         trainLabelStep();
 
         const int num = 5000;
+
+        if (epoch % 50000 == 0)
+        {
+            if (learnRate > 0.000002)
+                learnRate *= 0.5;
+        }
 
         // test performance on validation set
         // once in a while
@@ -256,6 +312,11 @@ void TrainMnist::Private::train()
                       << std::endl;
 
             clearErrorCount();
+#if 1
+            if (error_percent < 9)
+                runInputApproximation();
+#endif
+
 #if 0
             if (error_percent < 20 && doGrow)
             {
@@ -278,6 +339,13 @@ void TrainMnist::Private::clearErrorCount()
             x = 0.;
 }
 
+void TrainMnist::Private::prepareExpectedOutput(std::vector<Float>& v, uint8_t label) const
+{
+    for (auto& f : v)
+        f = 0.0;
+    v[label] = .9;
+}
+
 void TrainMnist::Private::trainLabelStep()
 {
     const size_t numBatch = 1;
@@ -293,9 +361,7 @@ void TrainMnist::Private::trainLabelStep()
         const Float *image = trainSet.image(num);
 
         // prepare expected output
-        for (auto& f : bufExp)
-            f = 0.2;
-        bufExp[label] = .8;
+        prepareExpectedOutput(bufExp, label);
 
     #if 0
         net.fprop(image, &bufOut[0]);
@@ -371,10 +437,12 @@ void TrainMnist::Private::testPerformance()
 {
     clearErrorCount();
 
-    for (size_t num=0; num < testSet.numSamples(); ++num)
+    auto& set = testSet;
+
+    for (size_t num=0; num < set.numSamples(); ++num)
     {
-        uint8_t label = testSet.label(num);
-        const Float *image = testSet.image(num);
+        uint8_t label = set.label(num);
+        const Float *image = set.image(num);
 
         net.fprop(image, &bufOut[0]);
 
@@ -400,3 +468,25 @@ void TrainMnist::Private::testPerformance()
               << std::endl;
 }
 
+void TrainMnist::Private::runInputApproximation()
+{
+    GenerateInput<Float> gen;
+
+    std::vector<Float> output(net.numOut());
+    prepareExpectedOutput(output, 8);
+    gen.setExpectedOutput(&output[0], output.size());
+
+    const size_t numIt = 1000;
+    size_t it = 0;
+    while (true)
+    {
+        gen.approximateInput(net, numIt);
+        it += numIt;
+
+        std::cout << "iteration " << it << ", error best " << gen.error()
+                  << ", worst " << gen.errorWorst() << "\n";
+        printStateAscii(gen.input(), trainSet.width(), trainSet.height());
+        printState(gen.output(), net.numOut(), 1);
+        std::cout << std::endl;
+    }
+}

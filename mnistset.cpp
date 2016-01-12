@@ -98,7 +98,7 @@ void MnistSet::load(const char* labelName, const char* imageName)
 
     for (size_t i=0; i<tmp.size(); ++i)
     {
-        p_images_[i] = float(tmp[i]) / 255;
+        p_images_[i] = -.01 + 1.01 * float(tmp[i]) / 255;
     }
 
 }
