@@ -57,6 +57,7 @@ class Perceptron : public Layer<Float>
 
     virtual const char * id() const override { return "Perceptron"; }
     virtual const char * name() const override { return "Perceptron"; }
+    virtual size_t numParameters() const override { return weight_.size(); }
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 

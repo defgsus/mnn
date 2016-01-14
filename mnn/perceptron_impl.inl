@@ -181,17 +181,9 @@ void MNN_PERCEPTRON::fprop(const Float * input, Float * output)
             input_[i] = *input;
 
 	// propagate
-	auto w = weight_.begin();
-	for (auto o = output_.begin(); o != output_.end(); ++o)
-	{
-		Float sum = 0;
-		for (auto i = input_.begin(); i != input_.end(); ++i, ++w)
-		{
-			sum += *i * *w;
-		}
-
-		*o = ActFunc::activation(sum);
-	}
+    DenseMatrix::fprop<Float, ActFunc>(
+                &input_[0], &output_[0], &weight_[0],
+                input_.size(), output_.size());
 
 	// copy to caller
     std::copy(output_.begin(), output_.end(), output);
@@ -202,39 +194,18 @@ MNN_TEMPLATE
 void MNN_PERCEPTRON::bprop(const Float * error, Float * error_output,
                            Float global_learn_rate)
 {
-	global_learn_rate *= learnRate_;
-
-    const Float * e;
-
 	// pass error through
 	if (error_output)
-    for (size_t i = 0; i<numIn(); ++i, ++error_output)
-	{
-		Float sum = 0;
-		e = error;
-		for (size_t o = 0; o < output_.size(); ++o, ++e)
-		{
-			sum += *e * weight_[o * input_.size() + i];
-		}
-		*error_output = sum;
-	}
+        DenseMatrix::bprop_stride<Float>(
+                error_output, error, &weight_[0],
+                numIn(), output_.size(), input_.size());
 
 	// backprob derivative
-    auto w = &weight_[0];
-    auto pd = &prevDelta_[0];
-	e = error;
-	for (auto o = output_.begin(); o != output_.end(); ++o, ++e)
-	{
-        Float de = ActFunc::derivative(*e, *o);
-
-        for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd)
-		{
-            *pd = momentum_ * *pd
-                + global_learn_rate * de * *i;
-            *w += *pd;
-		}
-
-	}
+    DenseMatrix::gradient_descent<Float, ActFunc>(
+                &input_[0], &output_[0], error, &weight_[0], &prevDelta_[0],
+                input_.size(), output_.size(),
+                global_learn_rate * learnRate_,
+                momentum_);
 }
 
 
@@ -257,11 +228,12 @@ void MNN_PERCEPTRON::info(std::ostream &out) const
 	out <<   "name       : " << name()
         << "\nlearnrate  : " << learnRate_
         << "\nmomentum   : " << momentum_
+        << "\nactivation : " << ActFunc::static_name()
         << "\ninputs     : " << numIn()
             << (biasCell_ ? " (+1 bias)" : "")
         << "\noutputs    : " << numOut()
-		<< "\nactivation : " << ActFunc::static_name()
-		<< "\n";
+        << "\nparameters : " << numParameters()
+        << "\n";
 }
 
 MNN_TEMPLATE

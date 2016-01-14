@@ -9,6 +9,7 @@
 #include "trainmnist.h"
 #include "mnistset.h"
 #include "printstate.h"
+#include "generate_input.h"
 
 #define LOG(arg__) { std::cout << arg__ << std::endl; }
 
@@ -549,6 +550,28 @@ void evaluateRbm(Net rbm, const MnistSet& set)
     }
 }
 
+template <typename Float, class Rbm>
+void runInputApproximationRbm(Rbm& net)
+{
+    assert(net.numIn() == 28*28);
+
+    GenerateInput<Float> gen(.5, .9);
+    gen.initializeInput();
+
+    const size_t numIt = 1000;
+    size_t it = 0;
+    while (true)
+    {
+        gen.approximateInputRbm(net, numIt, 1);
+        it += numIt;
+
+        std::cout << "iteration " << it << ", error best " << gen.error()
+                  << ", worst " << gen.errorWorst() << "\n";
+        printStateAscii(gen.input(), 28, 28);
+        std::cout << std::endl;
+    }
+}
+
 
 template <typename F>
 void testRbm()
@@ -569,7 +592,7 @@ void testRbm()
         f = MNN::rnd(F(0), F(1));
 #endif
 
-    auto rbm = new MNN::Rbm<F, MNN::Activation::LinearRectified>(numIn, 20, 1);
+    auto rbm = new MNN::Rbm<F, MNN::Activation::Logistic>(numIn, 100, 1);
     rbm->brainwash();
     rbm->setMomentum(0.5);
 
@@ -591,36 +614,42 @@ void testRbm()
     {
         if (it % 1000 == 0)
         {
+            F av_err = (err_sum / err_count);
             //rbm->dump();
             std::cout << "step " << std::left << std::setw(9) << it
                       << " err " << std::setw(9) << err_min
                       << " - " << std::setw(9) << err_max
-                      << " av " << std::setw(9) << (err_sum / err_count)
+                      << " av " << std::setw(9) << av_err
                       << " avweight " << rbm->getWeightAverage()
                       << std::endl;
 
+            if (av_err < 4. && it > 60000)
+                runInputApproximationRbm<F>(*rbm);
+
             err_max = 0.;
             err_min = -1.;
+            err_sum = 0;
+            err_count = 0;
         }
 
 #ifdef MNIST
         size_t idx = rand() % set.numSamples();
         //idx = idx % 10;
-        err = rbm->cd(set.image(idx), 5, 0.01);
-        //err /= (rbm->numOut() * rbm->numIn());
-        err = rbm->compareInput(set.image(idx));
+        err = rbm->cd(set.image(idx), 2, 0.0005);
+        err = 100 * err / (rbm->numOut() * rbm->numIn());
+        //err = rbm->compareInput(set.image(idx));
 #else
         err = rbm->cd(&input[0], 2, 0.1);
 #endif
         // gather error stats
-        if (err_min < 0.)
-            err_min = err;
-        else
-            err_min = std::min(err_min, err);
-        err_max = std::max(err_max, err);
-
         if (err > 0.)
         {
+            if (err_min < 0.)
+                err_min = err;
+            else
+                err_min = std::min(err_min, err);
+            err_max = std::max(err_max, err);
+
             err_sum += err;
             ++err_count;
         }

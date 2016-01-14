@@ -75,6 +75,7 @@ class Convolution : public Layer<Float>
 
     virtual const char * id() const override { return "Convolution"; }
     virtual const char * name() const override { return "Convolution"; }
+    virtual size_t numParameters() const override { return weight_.size(); }
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 

@@ -69,6 +69,7 @@ class Rbm : public Layer<Float>
 
     virtual const char * id() const override { return "RBM"; }
     virtual const char * name() const override { return "RBM"; }
+    virtual size_t numParameters() const override { return weight_.size(); }
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 

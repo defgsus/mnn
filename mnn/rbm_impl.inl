@@ -392,10 +392,11 @@ void MNN_RBM::info(std::ostream &out) const
     out <<   "name       : " << name()
         << "\nlearnrate  : " << learnRate_
         << "\nmomentum   : " << momentum_
+        << "\nactivation : " << ActFunc::static_name()
         << "\ninputs     : " << numIn()
             << (biasCell_ ? " (+1 bias)" : "")
         << "\noutputs    : " << numOut()
-        << "\nactivation : " << ActFunc::static_name()
+        << "\nparameters : " << numParameters()
         << "\n";
 }
 

@@ -180,7 +180,7 @@ void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
         *i = *input;
 
     // propagate
-    auto w = weight_.begin();
+    auto w = &weight_[0];
     for (auto o = output_.begin(); o != output_.end(); ++o)
     {
         Float sum = 0;
@@ -222,18 +222,19 @@ void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
     // backprob derivative
     e = error;
     Float* w = &weight_[0];
+    Float* pd = &prevDelta_[0];
+    Float* bias = &bias_[0];
     for (auto o = output_.begin(); o != output_.end(); ++o, ++e)
     {
         Float de = ActFunc::derivative(*e, *o);
 
-        Float* pd = &prevDelta_[0];
-        Float* bias = &bias_[0];
+        *bias += learnRateBias_ * global_learn_rate * de;
+
         for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd, ++bias)
         {
             *pd = momentum_ * *pd
                 + global_learn_rate * de * *i;
             *w += *pd;
-            *bias += learnRateBias_ * global_learn_rate * de;
         }
 
     }
@@ -259,9 +260,10 @@ void MNN_PERCEPTRONBIAS::info(std::ostream &out) const
     out <<   "name       : " << name()
         << "\nlearnrate  : " << learnRate_ << " (bias: " << learnRateBias_ << ")"
         << "\nmomentum   : " << momentum_
+        << "\nactivation : " << ActFunc::static_name()
         << "\ninputs     : " << numIn()
         << "\noutputs    : " << numOut()
-        << "\nactivation : " << ActFunc::static_name()
+        << "\nparameters : " << numParameters()
         << "\n";
 }
 

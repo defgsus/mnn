@@ -292,11 +292,11 @@ void MNN_CONVOLUTION::info(std::ostream& out) const
     out <<   "name       : " << name()
         << "\nlearnrate  : " << learnRate_
         << "\nmomentum   : " << momentum_
+        << "\nactivation : " << ActFunc::static_name()
         << "\ninputs     : " << numIn() << " (" << inputWidth_ << "x" << inputHeight_ << ")"
         << "\noutputs    : " << numOut() << " (" << scanWidth_ << "x" << scanHeight_ << ")"
         << "\nkernel     : " << kernelWidth_ << "x" << kernelHeight_
-                                << " (" << (kernelWidth_ * kernelHeight_) << ")"
-        << "\nactivation : " << ActFunc::static_name()
+        << "\nparameters : " << numParameters()
         << "\n";
 }
 

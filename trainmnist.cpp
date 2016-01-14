@@ -107,7 +107,7 @@ void TrainMnist::Private::createNet()
     bufErr.resize(numOut);
     errorsPerClass.resize(numOut);
 
-#if 1
+#if 0
     auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 200);
     //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
     //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
@@ -140,7 +140,30 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);*/
 #endif
 
-#elif 0
+#elif 1
+    // ----- classic dense matrix -----
+
+    typedef MNN::Activation::LinearRectified Act;
+    //typedef MNN::Activation::Logistic Act;
+    {
+        auto l = new MNN::Perceptron<Float, Act>(
+                    trainSet.width() * trainSet.height(), 200);
+        l->setMomentum(.9);
+        //l->setLearnRateBias(.2);
+        net.add(l);
+    }
+    {
+        auto l = new MNN::Perceptron<Float, Act>(net.numOut(), 10);
+        l->setMomentum(.9);
+        //l->setLearnRateBias(.2);
+        net.add(l);
+    }
+
+    net.brainwash();
+    learnRate = 0.001;
+
+
+#elif 1
     // ----- deep convolution -------
 
     //typedef MNN::Activation::LinearRectified ConvAct;
@@ -149,13 +172,13 @@ void TrainMnist::Private::createNet()
 
     // first layer
     auto l1 = new MNN::Convolution<Float, ConvAct>(
-                    trainSet.width(), trainSet.height(), 25, 25);
+                    trainSet.width(), trainSet.height(), 5, 5);
     l1->setMomentum(.9);
     net.add(l1);
     auto lprev = l1;
     for (int i = 0; i < 3; ++i)
     {
-        size_t newSize = 2;//lprev->kernelWidth() / 3;
+        size_t newSize = lprev->kernelWidth() * 1.3;
         if (newSize > lprev->scanWidth()
             || newSize == lprev->kernelWidth()
             || newSize < 2)
@@ -164,6 +187,11 @@ void TrainMnist::Private::createNet()
                    lprev->scanWidth(), lprev->scanHeight(),
                    newSize, newSize);
         lx->setMomentum(.9);
+        if (lx->scanWidth() * lx->scanHeight() < 50)
+        {
+            delete lx;
+            break;
+        }
         net.add(lx);
         lprev = lx;
     }
@@ -174,9 +202,9 @@ void TrainMnist::Private::createNet()
     //lout2->setMomentum(.9);
     //net.add(lout2);
 
-    learnRate = 0.0001;
+    learnRate = 0.001;
 
-    net.brainwash(0.5);
+    net.brainwash(1.);
 #elif 0
 
     // ----- convolution -------
@@ -312,8 +340,8 @@ void TrainMnist::Private::train()
                       << std::endl;
 
             clearErrorCount();
-#if 1
-            if (error_percent < 9)
+#if 0
+            if (error_percent < 18)
                 runInputApproximation();
 #endif
 
@@ -470,10 +498,10 @@ void TrainMnist::Private::testPerformance()
 
 void TrainMnist::Private::runInputApproximation()
 {
-    GenerateInput<Float> gen;
+    GenerateInput<Float> gen(0.2, 0.21);
 
     std::vector<Float> output(net.numOut());
-    prepareExpectedOutput(output, 8);
+    prepareExpectedOutput(output, 1);
     gen.setExpectedOutput(&output[0], output.size());
 
     const size_t numIt = 1000;

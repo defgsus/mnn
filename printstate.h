@@ -35,7 +35,7 @@ void printStateAscii(const F* state, size_t width, size_t height,
     {
         for (size_t i=0; i<width; ++i, ++state)
         {
-            out << ( *state > .7 ? '#' : *state > .35 ? '*' : '.' );
+            out << ( *state > .7 ? '#' : *state > .35 ? '*' : *state > .15 ? ':' : '.' );
         }
         out << std::endl;
     }

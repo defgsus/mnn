@@ -140,6 +140,10 @@ class Layer
     /** Return a nice name for the layer type */
     virtual const char * name() const = 0;
 
+    /** Return the number of adjustable parameters,
+        typically the number of weights */
+    virtual size_t numParameters() const = 0;
+
     /** Print an overview of the network */
 	virtual void info(std::ostream &out = std::cout) const = 0;
 

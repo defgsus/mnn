@@ -76,6 +76,7 @@ class StackSerial : public Layer<Float>
 
     virtual const char * id() const override { return "StackSerial"; }
     virtual const char * name() const override { return "StackSerial"; }
+    virtual size_t numParameters() const override;
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 

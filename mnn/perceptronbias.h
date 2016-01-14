@@ -60,6 +60,7 @@ class PerceptronBias : public Layer<Float>
 
     virtual const char * id() const override { return "PerceptronBias"; }
     virtual const char * name() const override { return "PerceptronBias"; }
+    virtual size_t numParameters() const override { return weight_.size() + bias_.size(); }
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 

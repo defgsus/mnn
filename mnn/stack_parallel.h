@@ -81,6 +81,7 @@ class StackParallel : public Layer<Float>
 
     virtual const char * id() const override { return "StackParallel"; }
     virtual const char * name() const override { return "StackParallel"; }
+    virtual size_t numParameters() const override;
     virtual void info(std::ostream &out = std::cout) const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 

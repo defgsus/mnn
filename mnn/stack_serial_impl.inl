@@ -240,9 +240,20 @@ Float MNN_STACKSERIAL::getWeightAverage() const
 }
 
 MNN_TEMPLATE
+size_t MNN_STACKSERIAL::numParameters() const
+{
+    size_t num = 0;
+    for (auto l : layer_)
+        num += l->numParameters();
+    return num;
+}
+
+MNN_TEMPLATE
 void MNN_STACKSERIAL::info(std::ostream &out) const
 {
-	out << "name : " << name() << "\n";
+    out << "name      : " << name() << "\n"
+        << "parameters: " << numParameters()
+        << "\n";
 	size_t k = 1;
 	for (auto l = layer_.begin(); l != layer_.end(); ++l, ++k)
 	{
