@@ -41,6 +41,29 @@ MNN_CONVOLUTION::~Convolution()
 
 }
 
+MNN_TEMPLATE
+Convolution<Float, ActFunc>& MNN_CONVOLUTION::operator = (const Layer<Float>& layer)
+{
+    auto net = dynamic_cast<const Convolution<Float, ActFunc>*>(&layer);
+    if (!net)
+        return *this;
+
+    input_ = net->input_;
+    output_ = net->output_;
+    weight_ = net->weight_;
+    prevDelta_ = net->prevDelta_;
+
+    inputWidth_ = net->inputWidth_;
+    inputHeight_ = net->inputHeight_;
+    kernelWidth_ = net->kernelWidth_;
+    kernelHeight_ = net->kernelHeight_;
+
+    learnRate_ = net->learnRate_;
+    momentum_ = net->momentum_;
+
+    return *this;
+}
+
 // ---------------- io -------------------
 
 MNN_TEMPLATE
@@ -287,16 +310,19 @@ Float MNN_CONVOLUTION::getWeightAverage() const
 }
 
 MNN_TEMPLATE
-void MNN_CONVOLUTION::info(std::ostream& out) const
+void MNN_CONVOLUTION::info(std::ostream& out,
+                           const std::string& pf) const
 {
-    out <<   "name       : " << name()
-        << "\nlearnrate  : " << learnRate_
-        << "\nmomentum   : " << momentum_
-        << "\nactivation : " << ActFunc::static_name()
-        << "\ninputs     : " << numIn() << " (" << inputWidth_ << "x" << inputHeight_ << ")"
-        << "\noutputs    : " << numOut() << " (" << scanWidth_ << "x" << scanHeight_ << ")"
-        << "\nkernel     : " << kernelWidth_ << "x" << kernelHeight_
-        << "\nparameters : " << numParameters()
+    out <<         pf << "name       : " << name()
+        << "\n" << pf << "learnrate  : " << learnRate_
+        << "\n" << pf << "momentum   : " << momentum_
+        << "\n" << pf << "activation : " << ActFunc::static_name()
+        << "\n" << pf << "inputs     : "
+                << numIn() << " (" << inputWidth_ << "x" << inputHeight_ << ")"
+        << "\n" << pf << "outputs    : "
+                << numOut() << " (" << scanWidth_ << "x" << scanHeight_ << ")"
+        << "\n" << pf << "kernel     : " << kernelWidth_ << "x" << kernelHeight_
+        << "\n" << pf << "parameters : " << numParameters()
         << "\n";
 }
 

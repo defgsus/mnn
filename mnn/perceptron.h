@@ -13,11 +13,17 @@
 #include <iostream>
 
 #include "layer.h"
+#include "interface.h"
 
 namespace MNN {
 
 template <typename Float, class ActFunc>
-class Perceptron : public Layer<Float>
+class Perceptron
+        : public Layer<Float>
+        , public GetMomentumInterface<Float>
+        , public SetMomentumInterface<Float>
+        , public GetDropOutInterface<Float>
+        , public SetDropOutInterface<Float>
 {
 	public:
 
@@ -25,8 +31,25 @@ class Perceptron : public Layer<Float>
 
 	virtual ~Perceptron();
 
-    Float momentum() const { return momentum_; }
-    void setMomentum(Float m) { momentum_ = m; }
+    // ----------- copying -------------------
+
+    virtual Perceptron<Float, ActFunc> * cloneClass() const override
+        { return new Perceptron<Float, ActFunc>(numIn(), numOut(), learnRate_, biasCell_); }
+
+    virtual Perceptron<Float, ActFunc>& operator = (const Layer<Float>&) override;
+
+    // --------- MomentumInterface -----------
+
+    virtual Float momentum() const override { return momentum_; }
+    virtual void setMomentum(Float m) override { momentum_ = m; }
+
+    // --------- DropOutInterface ------------
+
+    virtual DropOutMode dropOutMode() const override { return dropOutMode_; }
+    virtual void setDropOutMode(DropOutMode m) override { dropOutMode_ = m; }
+
+    virtual Float dropOut() const override { return dropOut_; }
+    virtual void setDropOut(Float probability) override { dropOut_ = probability; }
 
 	// ----------- nn interface --------------
 
@@ -58,7 +81,8 @@ class Perceptron : public Layer<Float>
     virtual const char * id() const override { return "Perceptron"; }
     virtual const char * name() const override { return "Perceptron"; }
     virtual size_t numParameters() const override { return weight_.size(); }
-    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void info(std::ostream &out = std::cout,
+                      const std::string& postFix = "") const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 
     virtual Float getWeightAverage() const override;
@@ -75,9 +99,14 @@ protected:
 		output_,
         weight_,
         prevDelta_;
+    std::vector<uint8_t>
+        drop_input_;
 
     Float learnRate_,
-          momentum_;
+          momentum_,
+          dropOut_;
+
+    DropOutMode dropOutMode_;
 
     bool biasCell_;
 };

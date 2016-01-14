@@ -9,6 +9,8 @@
 #define MNN_MNN_H_INCLUDED
 
 #include "mnn/activation.h"
+#include "mnn/function.h"
+#include "mnn/interface.h"
 #include "mnn/layer.h"
 #include "mnn/stack_serial.h"
 #include "mnn/stack_parallel.h"

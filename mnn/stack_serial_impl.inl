@@ -18,9 +18,25 @@ MNN_STACKSERIAL::StackSerial()
 MNN_TEMPLATE
 MNN_STACKSERIAL::~StackSerial()
 {
-	// free layers
-    for (auto l : layer_)
-        delete l;
+    clearLayers();
+}
+
+MNN_TEMPLATE
+StackSerial<Float>& MNN_STACKSERIAL::operator = (const Layer<Float>& layer)
+{
+    auto net = dynamic_cast<const StackSerial<Float>*>(&layer);
+    if (!net)
+        return *this;
+
+    clearLayers();
+
+    for (size_t i = 0; i < net->numLayer(); ++i)
+    {
+        auto l = net->layer(i)->getCopy();
+        add(l);
+    }
+
+    return *this;
 }
 
 
@@ -64,6 +80,32 @@ void MNN_STACKSERIAL::deserialize(std::istream& s)
         l->deserialize(s);
 
     resizeBuffers_();
+}
+
+// ----------- dropout & momentum -------------
+
+MNN_TEMPLATE
+void MNN_STACKSERIAL::setDropOutMode(DropOutMode m)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetDropOutInterface<Float>*>(l))
+            d->setDropOutMode(m);
+}
+
+MNN_TEMPLATE
+void MNN_STACKSERIAL::setDropOut(Float prob)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetDropOutInterface<Float>*>(l))
+            d->setDropOut(prob);
+}
+
+MNN_TEMPLATE
+void MNN_STACKSERIAL::setMomentum(Float m)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetMomentumInterface<Float>*>(l))
+            d->setMomentum(m);
 }
 
 
@@ -115,6 +157,15 @@ void MNN_STACKSERIAL::brainwash(Float amp)
 }
 
 // ----------- layer interface -----------
+
+MNN_TEMPLATE
+void MNN_STACKSERIAL::clearLayers()
+{
+    // free layers
+    for (auto l : layer_)
+        delete l;
+    layer_.clear();
+}
 
 MNN_TEMPLATE
 size_t MNN_STACKSERIAL::numLayer() const
@@ -249,16 +300,16 @@ size_t MNN_STACKSERIAL::numParameters() const
 }
 
 MNN_TEMPLATE
-void MNN_STACKSERIAL::info(std::ostream &out) const
+void MNN_STACKSERIAL::info(std::ostream &out, const std::string& pf) const
 {
-    out << "name      : " << name() << "\n"
-        << "parameters: " << numParameters()
+    out <<         pf << "name      : " << name()
+        << "\n" << pf << "parameters: " << numParameters()
         << "\n";
 	size_t k = 1;
 	for (auto l = layer_.begin(); l != layer_.end(); ++l, ++k)
 	{
-		out << "-- layer " << k << " --\n";
-		(*l)->info(out);
+        out << pf << "-- layer " << k << " --\n";
+        (*l)->info(out, pf + "  ");
 	}
 }
 

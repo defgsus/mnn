@@ -17,11 +17,15 @@
 #include <iostream>
 
 #include "layer.h"
+#include "interface.h"
 
 namespace MNN {
 
 template <typename Float, class ActFunc>
-class Convolution : public Layer<Float>
+class Convolution
+        : public Layer<Float>
+        , public GetMomentumInterface<Float>
+        , public SetMomentumInterface<Float>
 {
     public:
 
@@ -31,8 +35,18 @@ class Convolution : public Layer<Float>
 
     virtual ~Convolution();
 
-    Float momentum() const { return momentum_; }
-    void setMomentum(Float m) { momentum_ = m; }
+    // ----------- copying -------------------
+
+    virtual Convolution<Float, ActFunc> * cloneClass() const override
+        { return new Convolution<Float, ActFunc>(
+                    inputWidth(), inputHeight(), kernelWidth(), kernelHeight(), learnRate_); }
+
+    virtual Convolution<Float, ActFunc>& operator = (const Layer<Float>&) override;
+
+    // --------- MomentumInterface -----------
+
+    virtual Float momentum() const override { return momentum_; }
+    virtual void setMomentum(Float m) override { momentum_ = m; }
 
     // ----------- nn interface --------------
 
@@ -76,7 +90,8 @@ class Convolution : public Layer<Float>
     virtual const char * id() const override { return "Convolution"; }
     virtual const char * name() const override { return "Convolution"; }
     virtual size_t numParameters() const override { return weight_.size(); }
-    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void info(std::ostream &out = std::cout,
+                      const std::string& postFix = "") const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 
     virtual Float getWeightAverage() const override;

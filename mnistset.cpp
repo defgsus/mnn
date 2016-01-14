@@ -10,9 +10,10 @@
 
 #include <cstdio>
 #include <exception>
+#include <iostream>
 
 #include "mnistset.h"
-
+#include "mnn/function.h"
 
 
 
@@ -98,8 +99,61 @@ void MnistSet::load(const char* labelName, const char* imageName)
 
     for (size_t i=0; i<tmp.size(); ++i)
     {
-        p_images_[i] = -.01 + 1.01 * float(tmp[i]) / 255;
+        p_images_[i] = float(tmp[i]) / 255.f;
     }
 
 }
 
+float MnistSet::getMean() const
+{
+    float sum = 0.f;
+    for (auto f : p_images_)
+        sum += f;
+    if (!p_images_.empty())
+        sum /= p_images_.size();
+    return sum;
+}
+
+void MnistSet::normalize()
+{
+    float mean = getMean();
+    std::cout << "normalizing with mean value " << mean << std::endl;
+    for (auto& f : p_images_)
+        f -= mean;
+}
+
+const float* MnistSet::getNoisyBackgroundImage(
+    uint32_t index, float backgroundThreshold, float minRnd, float maxRnd)
+{
+    if (p_processed_.size() != width() * height())
+        p_processed_.resize(width() * height());
+
+    const float * img = image(index);
+    for (auto& p : p_processed_)
+    {
+        float pix = *img++;
+
+        if (pix <= backgroundThreshold)
+        {
+            pix = MNN::rnd(minRnd, maxRnd);
+        }
+
+        p = pix;
+    }
+
+    return &p_processed_[0];
+}
+
+uint32_t MnistSet::nextRandomSample(uint32_t index) const
+{
+    auto lab = label(index);
+
+    size_t count = 0;
+    do
+    {
+        index = rand() % numSamples();
+    }
+    while (lab == label(index) && count++ < numSamples());
+
+    return index;
+}

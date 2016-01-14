@@ -21,9 +21,26 @@ MNN_STACKPARALLEL::StackParallel()
 MNN_TEMPLATE
 MNN_STACKPARALLEL::~StackParallel()
 {
-    // free layers
-    for (auto l : layer_)
-        delete l;
+    clearLayers();
+}
+
+
+MNN_TEMPLATE
+StackParallel<Float>& MNN_STACKPARALLEL::operator = (const Layer<Float>& layer)
+{
+    auto net = dynamic_cast<const StackParallel<Float>*>(&layer);
+    if (!net)
+        return *this;
+
+    clearLayers();
+
+    for (size_t i = 0; i < net->numLayer(); ++i)
+    {
+        auto l = net->layer(i)->getCopy();
+        add(l);
+    }
+
+    return *this;
 }
 
 
@@ -70,6 +87,34 @@ void MNN_STACKPARALLEL::deserialize(std::istream& s)
 }
 
 
+
+// ----------- dropout & momentum -------------
+
+MNN_TEMPLATE
+void MNN_STACKPARALLEL::setDropOutMode(DropOutMode m)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetDropOutInterface<Float>*>(l))
+            d->setDropOutMode(m);
+}
+
+MNN_TEMPLATE
+void MNN_STACKPARALLEL::setDropOut(Float prob)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetDropOutInterface<Float>*>(l))
+            d->setDropOut(prob);
+}
+
+MNN_TEMPLATE
+void MNN_STACKPARALLEL::setMomentum(Float m)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetMomentumInterface<Float>*>(l))
+            d->setMomentum(m);
+}
+
+
 // ----------- nn interface --------------
 
 MNN_TEMPLATE
@@ -113,6 +158,14 @@ void MNN_STACKPARALLEL::brainwash(Float amp)
 }
 
 // ----------- layer interface -----------
+
+MNN_TEMPLATE
+void MNN_STACKPARALLEL::clearLayers()
+{
+    for (auto l : layer_)
+        delete l;
+    layer_.clear();
+}
 
 MNN_TEMPLATE
 size_t MNN_STACKPARALLEL::numLayer() const
@@ -218,16 +271,16 @@ size_t MNN_STACKPARALLEL::numParameters() const
 }
 
 MNN_TEMPLATE
-void MNN_STACKPARALLEL::info(std::ostream &out) const
+void MNN_STACKPARALLEL::info(std::ostream &out, const std::string& pf) const
 {
-    out << "name      : " << name() << "\n"
-        << "parameters: " << numParameters()
+    out <<         pf << "name      : " << name()
+        << "\n" << pf << "parameters: " << numParameters()
         << "\n";
     size_t k = 1;
     for (auto l = layer_.begin(); l != layer_.end(); ++l, ++k)
     {
-        out << "-- parallel layer " << k << " --\n";
-        (*l)->info(out);
+        out << pf << "-- parallel layer " << k << " --\n";
+        (*l)->info(out, pf + "  ");
     }
 }
 

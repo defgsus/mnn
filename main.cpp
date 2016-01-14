@@ -415,8 +415,8 @@ public:
             }
 
             // contrastive divergance training
-            Float err = rbm->cd(&sample->data[0], cdSteps_, learnRate_);
-            err = err / (rbm->numOut() * rbm->numIn()) * 100;
+            Float err = rbm->contrastive_divergence(&sample->data[0], cdSteps_, learnRate_);
+            //err = err / (rbm->numOut() * rbm->numIn()) * 100;
             sample->err_cd = err;
 
             // gather error stats
@@ -635,7 +635,7 @@ void testRbm()
 #ifdef MNIST
         size_t idx = rand() % set.numSamples();
         //idx = idx % 10;
-        err = rbm->cd(set.image(idx), 2, 0.0005);
+        err = rbm->contrastive_divergence(set.image(idx), 2, 0.0005);
         err = 100 * err / (rbm->numOut() * rbm->numIn());
         //err = rbm->compareInput(set.image(idx));
 #else

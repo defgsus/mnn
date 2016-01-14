@@ -13,6 +13,8 @@ MNN_TEMPLATE
 MNN_PERCEPTRON::Perceptron(size_t nrIn, size_t nrOut, Float learnRate, bool bc)
     : learnRate_	(learnRate)
     , momentum_     (.1)
+    , dropOut_      (.5)
+    , dropOutMode_  (DO_OFF)
     , biasCell_     (bc)
 {
 	resize(nrIn, nrOut);
@@ -23,6 +25,28 @@ MNN_PERCEPTRON::~Perceptron()
 {
 
 }
+
+MNN_TEMPLATE
+Perceptron<Float, ActFunc>& MNN_PERCEPTRON::operator = (const Layer<Float>& layer)
+{
+    auto net = dynamic_cast<const Perceptron<Float, ActFunc>*>(&layer);
+    if (!net)
+        return *this;
+
+    input_ = net->input_;
+    output_ = net->output_;
+    weight_ = net->weight_;
+    prevDelta_ = net->prevDelta_;
+    drop_input_ = net->drop_input_;
+    learnRate_ = net->learnRate_;
+    momentum_ = net->momentum_;
+    dropOut_ = net->dropOut_;
+    dropOutMode_ = net->dropOutMode_;
+    biasCell_ = net->biasCell_;
+
+    return *this;
+}
+
 
 // ---------------- io -------------------
 
@@ -180,10 +204,35 @@ void MNN_PERCEPTRON::fprop(const Float * input, Float * output)
         for (size_t i=0; i<input_.size(); ++i, ++input)
             input_[i] = *input;
 
-	// propagate
-    DenseMatrix::fprop<Float, ActFunc>(
-                &input_[0], &output_[0], &weight_[0],
-                input_.size(), output_.size());
+    if (dropOutMode_ == DO_TRAIN)
+    {
+        if (drop_input_.size() != input_.size())
+            drop_input_.resize(input_.size());
+        for (auto& d : drop_input_)
+            d = rnd(Float(0), Float(1)) < dropOut_ ? 1 : 0;
+
+        // propagate with dropout
+        DenseMatrixDropout::fprop<Float, uint8_t, ActFunc>(
+                    &input_[0], &output_[0], &weight_[0],
+                    &drop_input_[0],
+                    input_.size(), output_.size());
+    }
+    else if (dropOutMode_ == DO_PERFORM
+             && drop_input_.size() == input_.size())
+    {
+        // propagate
+        DenseMatrix::fprop_scale<Float, ActFunc>(
+                    &input_[0], &output_[0], &weight_[0],
+                    input_.size(), output_.size(),
+                    Float(1) - dropOut_);
+    }
+    else
+    {
+        // propagate
+        DenseMatrix::fprop<Float, ActFunc>(
+                    &input_[0], &output_[0], &weight_[0],
+                    input_.size(), output_.size());
+    }
 
 	// copy to caller
     std::copy(output_.begin(), output_.end(), output);
@@ -194,18 +243,38 @@ MNN_TEMPLATE
 void MNN_PERCEPTRON::bprop(const Float * error, Float * error_output,
                            Float global_learn_rate)
 {
-	// pass error through
-	if (error_output)
-        DenseMatrix::bprop_stride<Float>(
-                error_output, error, &weight_[0],
-                numIn(), output_.size(), input_.size());
+    if (dropOutMode_ != DO_OFF && drop_input_.size() == input_.size())
+    {
+        // pass error through
+        if (error_output)
+            DenseMatrixDropout::bprop_stride<Float, uint8_t>(
+                    error_output, error, &weight_[0],
+                    &drop_input_[0],
+                    numIn(), output_.size(), input_.size());
 
-	// backprob derivative
-    DenseMatrix::gradient_descent<Float, ActFunc>(
-                &input_[0], &output_[0], error, &weight_[0], &prevDelta_[0],
-                input_.size(), output_.size(),
-                global_learn_rate * learnRate_,
-                momentum_);
+        // backprob derivative
+        DenseMatrixDropout::gradient_descent<Float, uint8_t, ActFunc>(
+                    &input_[0], &output_[0], error, &weight_[0], &prevDelta_[0],
+                    &drop_input_[0],
+                    input_.size(), output_.size(),
+                    global_learn_rate * learnRate_,
+                    momentum_);
+    }
+    else
+    {
+        // pass error through
+        if (error_output)
+            DenseMatrix::bprop_stride<Float>(
+                    error_output, error, &weight_[0],
+                    numIn(), output_.size(), input_.size());
+
+        // backprob derivative
+        DenseMatrix::gradient_descent<Float, ActFunc>(
+                    &input_[0], &output_[0], error, &weight_[0], &prevDelta_[0],
+                    input_.size(), output_.size(),
+                    global_learn_rate * learnRate_,
+                    momentum_);
+    }
 }
 
 
@@ -223,16 +292,16 @@ Float MNN_PERCEPTRON::getWeightAverage() const
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRON::info(std::ostream &out) const
+void MNN_PERCEPTRON::info(std::ostream &out, const std::string& pf) const
 {
-	out <<   "name       : " << name()
-        << "\nlearnrate  : " << learnRate_
-        << "\nmomentum   : " << momentum_
-        << "\nactivation : " << ActFunc::static_name()
-        << "\ninputs     : " << numIn()
+    out <<         pf << "name       : " << name()
+        << "\n" << pf << "learnrate  : " << learnRate_
+        << "\n" << pf << "momentum   : " << momentum_
+        << "\n" << pf << "activation : " << ActFunc::static_name()
+        << "\n" << pf << "inputs     : " << numIn()
             << (biasCell_ ? " (+1 bias)" : "")
-        << "\noutputs    : " << numOut()
-        << "\nparameters : " << numParameters()
+        << "\n" << pf << "outputs    : " << numOut()
+        << "\n" << pf << "parameters : " << numParameters()
         << "\n";
 }
 

@@ -16,12 +16,17 @@
 #include <iostream>
 
 #include "layer.h"
+#include "interface.h"
 #include "activation.h"
 
 namespace MNN {
 
 template <typename Float, class ActFunc = MNN::Activation::Logistic>
-class Rbm : public Layer<Float>
+class Rbm
+        : public Layer<Float>
+        , public GetMomentumInterface<Float>
+        , public SetMomentumInterface<Float>
+        , public ContrastiveDivergenceInterface<Float>
 {
     public:
 
@@ -29,8 +34,17 @@ class Rbm : public Layer<Float>
 
     virtual ~Rbm();
 
-    Float momentum() const { return momentum_; }
-    void setMomentum(Float m) { momentum_ = m; }
+    // ----------- copying -------------------
+
+    virtual Rbm<Float, ActFunc> * cloneClass() const override
+        { return new Rbm<Float, ActFunc>(numIn(), numOut(), learnRate_, biasCell_); }
+
+    virtual Rbm<Float, ActFunc>& operator = (const Layer<Float>&) override;
+
+    // --------- MomentumInterface -----------
+
+    virtual Float momentum() const override { return momentum_; }
+    virtual void setMomentum(Float m) override { momentum_ = m; }
 
     // ----------- nn interface --------------
 
@@ -59,7 +73,8 @@ class Rbm : public Layer<Float>
 
     /** Contrastive divergence training.
         Returns the summed absolute reconstruction error */
-    Float cd(const Float* input, size_t numSteps = 1, Float learn_rate = 1);
+    virtual Float contrastive_divergence(
+            const Float* input, size_t numSteps = 1, Float learn_rate = 1) override;
 
     /** Returns the sum of the absolute difference between
         @p input and the current input state */
@@ -70,7 +85,8 @@ class Rbm : public Layer<Float>
     virtual const char * id() const override { return "RBM"; }
     virtual const char * name() const override { return "RBM"; }
     virtual size_t numParameters() const override { return weight_.size(); }
-    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void info(std::ostream &out = std::cout,
+                      const std::string& postFix = "") const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 
     virtual Float getWeightAverage() const override;
@@ -108,8 +124,6 @@ protected:
         prevDelta_,
         correlationData_,
         correlationModel_;
-    std::vector<uint8_t>
-        droppedCells_;
 
     Float learnRate_,
           momentum_;

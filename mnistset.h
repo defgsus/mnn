@@ -29,15 +29,30 @@ public:
     const float*  image(uint32_t index) const {
                                     return &p_images_[index * width() * height()]; }
 
+    /** Returns the next random sample number with a different label */
+    uint32_t nextRandomSample(uint32_t index) const;
+
+    /** Returns the given image with a noisy background.
+        Background is considered as values below @p backgroundThreshold.
+        @note Returned pointer is valid until next call to this function. */
+    const float* getNoisyBackgroundImage(
+            uint32_t index, float backgroundThreshold, float minRnd, float maxRnd);
+
     // ------------- io -------------
 
     /** Throws mnist_exception on any error */
     void load(const char* labelName, const char* imageName);
 
+    /** Returns the mean of all pixel values */
+    float getMean() const;
+
+    /** Sets the mean for all pixel values to zero */
+    void normalize();
+
 private:
 
     uint32_t p_width_, p_height_;
-    std::vector<float> p_images_;
+    std::vector<float> p_images_, p_processed_;
     std::vector<uint8_t> p_labels_;
 };
 

@@ -26,6 +26,27 @@ MNN_RBM::~Rbm()
 
 }
 
+MNN_TEMPLATE
+Rbm<Float, ActFunc>& MNN_RBM::operator = (const Layer<Float>& layer)
+{
+    auto net = dynamic_cast<const Rbm<Float, ActFunc>*>(&layer);
+    if (!net)
+        return *this;
+
+    input_ = net->input_;
+    output_ = net->output_;
+    weight_ = net->weight_;
+    prevDelta_ = net->prevDelta_;
+    correlationData_ = net->correlationData_;
+    correlationModel_ = net->correlationModel_;
+    learnRate_ = net->learnRate_;
+    momentum_ = net->momentum_;
+    biasCell_ = net->biasCell_;
+
+    return *this;
+}
+
+
 // ---------------- io -------------------
 
 MNN_TEMPLATE
@@ -226,7 +247,7 @@ void MNN_RBM::bprop(const Float * error, Float * error_output,
 }
 
 MNN_TEMPLATE
-Float MNN_RBM::cd(const Float* input, size_t numSteps, Float learn_rate)
+Float MNN_RBM::contrastive_divergence(const Float* input, size_t numSteps, Float learn_rate)
 {
     copyInput_(input);
 
@@ -277,6 +298,9 @@ Float MNN_RBM::compareInput(const Float* input) const
 MNN_TEMPLATE
 Float MNN_RBM::trainCorrelation_(Float learn_rate)
 {
+    if (input_.empty() || output_.empty())
+        return 0.;
+
     learn_rate *= learnRate_;
     Float err_sum = 0.,
           *w = &weight_[0],
@@ -300,7 +324,7 @@ Float MNN_RBM::trainCorrelation_(Float learn_rate)
         }
     }
 
-    return err_sum;
+    return err_sum / (input_.size() * output_.size());
 }
 
 
@@ -387,16 +411,16 @@ Float MNN_RBM::getWeightAverage() const
 
 
 MNN_TEMPLATE
-void MNN_RBM::info(std::ostream &out) const
+void MNN_RBM::info(std::ostream &out, const std::string& pf) const
 {
-    out <<   "name       : " << name()
-        << "\nlearnrate  : " << learnRate_
-        << "\nmomentum   : " << momentum_
-        << "\nactivation : " << ActFunc::static_name()
-        << "\ninputs     : " << numIn()
+    out <<         pf << "name       : " << name()
+        << "\n" << pf << "learnrate  : " << learnRate_
+        << "\n" << pf << "momentum   : " << momentum_
+        << "\n" << pf << "activation : " << ActFunc::static_name()
+        << "\n" << pf << "inputs     : " << numIn()
             << (biasCell_ ? " (+1 bias)" : "")
-        << "\noutputs    : " << numOut()
-        << "\nparameters : " << numParameters()
+        << "\n" << pf << "outputs    : " << numOut()
+        << "\n" << pf << "parameters : " << numParameters()
         << "\n";
 }
 

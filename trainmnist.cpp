@@ -11,8 +11,8 @@
 #include <fstream>
 #include <iomanip>
 
-#include "trainmnist.h"
 #include "mnn/mnn.h"
+#include "trainmnist.h"
 #include "mnistset.h"
 #include "printstate.h"
 #include "generate_input.h"
@@ -21,6 +21,11 @@ struct TrainMnist::Private
 {
     typedef float Float;
 
+    Private()
+        : doTrainCD (false)
+        , cdnet     (0)
+    { }
+
     void loadSet();
     void saveAllLayers(const std::string& postfix);
     void createNet();
@@ -28,10 +33,13 @@ struct TrainMnist::Private
     void prepareExpectedOutput(std::vector<Float>& v, uint8_t label) const;
     void train();
     void trainLabelStep();
+    template <class Rbm>
+    void trainCDStep(Rbm& rbm);
     /** Runs all test images and gathers errors */
     void testPerformance();
     /** Gets error and stats, returns label from net */
-    int getLabelError(int label);
+    template <class Net>
+    int getLabelError(const Net& net, int label);
 
     void runInputApproximation();
 
@@ -39,8 +47,11 @@ struct TrainMnist::Private
     MNN::StackSerial<Float> net;
     std::vector<Float> bufIn, bufExp, bufOut, bufErr;
     std::vector<size_t> errorsPerClass;
-    Float learnRate, error, error_min, error_max, error_sum;
-    size_t epoch, error_count;
+    Float learnRate,
+        error, error_min, error_max, error_sum;
+    size_t numBatch, epoch, error_count;
+    bool doTrainCD;
+    MNN::ContrastiveDivergenceInterface<Float>* cdnet;
 };
 
 TrainMnist::TrainMnist()
@@ -69,8 +80,10 @@ void TrainMnist::Private::loadSet()
     {
         trainSet.load("/home/defgsus/prog/DATA/mnist/train-labels.idx1-ubyte",
                       "/home/defgsus/prog/DATA/mnist/train-images.idx3-ubyte");
+        trainSet.normalize();
         testSet.load("/home/defgsus/prog/DATA/mnist/t10k-labels.idx1-ubyte",
                       "/home/defgsus/prog/DATA/mnist/t10k-images.idx3-ubyte");
+        testSet.normalize();
 
         std::cout << "loaded mnist set: "
                   << trainSet.width() << "x" << trainSet.height()
@@ -107,19 +120,22 @@ void TrainMnist::Private::createNet()
     bufErr.resize(numOut);
     errorsPerClass.resize(numOut);
 
-#if 0
-    auto l1 = new MNN::Rbm<Float, MNN::Activation::Logistic>(numIn, 200);
+    numBatch = 1;
+    doTrainCD = false;
+
+#if 1
+    auto l1 = new MNN::Rbm<Float, MNN::Activation::Linear>(numIn, 200);
     //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
     //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
-    auto l3 = new MNN::Rbm<Float, MNN::Activation::Logistic>(200, numOut, 1., true);
-    learnRate = 0.9;
+    auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, 1., true);
+    learnRate = 0.09;
 
     // load previous
 #if 0
     l1->loadTextFile("mnist_rbm_100h.txt");
 #elif 0
     l1->loadTextFile("../rbm_layer_0_300h.txt");
-    l2->loadTextFile("../rbm_layer_1_200h.txt");
+    //l2->loadTextFile("../rbm_layer_1_200h.txt");
 #endif
 
     l1->setMomentum(.7);
@@ -129,7 +145,9 @@ void TrainMnist::Private::createNet()
 //    net.add( l2 );
     net.add( l3 );
 
-    net.brainwash();
+    net.brainwash(0.1);
+    learnRate = 0.01;
+    //cdnet = l1; doTrainCD = true;
 
 #if 0
     net.loadTextFile("../mnist_e500_stack.txt");
@@ -140,7 +158,7 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);*/
 #endif
 
-#elif 1
+#elif 0
     // ----- classic dense matrix -----
 
     typedef MNN::Activation::LinearRectified Act;
@@ -149,21 +167,33 @@ void TrainMnist::Private::createNet()
         auto l = new MNN::Perceptron<Float, Act>(
                     trainSet.width() * trainSet.height(), 200);
         l->setMomentum(.9);
+        //l->setDropOutMode(MNN::DO_TRAIN);
+        //l->setDropOut(.2);
         //l->setLearnRateBias(.2);
         net.add(l);
     }
     {
-        auto l = new MNN::Perceptron<Float, Act>(net.numOut(), 10);
+        auto l = new MNN::Perceptron<Float, Act>(net.numOut(), 100);
         l->setMomentum(.9);
+        //l->setDropOutMode(MNN::DO_TRAIN);
+        //l->setDropOut(.5);
+        //l->setLearnRateBias(.2);
+        net.add(l);
+    }
+    {
+        auto l = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+        l->setMomentum(.9);
+        //l->setDropOutMode(MNN::DO_TRAIN);
+        //l->setDropOut(.5);
         //l->setLearnRateBias(.2);
         net.add(l);
     }
 
     net.brainwash();
     learnRate = 0.001;
+    numBatch = 1;
 
-
-#elif 1
+#elif 0
     // ----- deep convolution -------
 
     //typedef MNN::Activation::LinearRectified ConvAct;
@@ -226,11 +256,18 @@ void TrainMnist::Private::createNet()
         l->setMomentum(.9);
         net.add(l);
     }
+    {
+        auto l = new MNN::Perceptron<Float, ConvAct>(
+                            lprev->scanWidth() * lprev->scanHeight(),
+                            200);
+        l->setMomentum(.9);
+        net.add(l);
+    }
     auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
     net.add(lout);
 
-    learnRate = 0.0001;
+    learnRate = 0.00006;
 
     net.brainwash(0.5);
 
@@ -242,11 +279,14 @@ void TrainMnist::Private::createNet()
 
     auto stack = new MNN::StackParallel<Float>;
 
+    for (int i = 0; i<3; ++i)
     {
-        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 1, 1);
+        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(),
+                                                       5, 5);
         l1->setMomentum(.9);
         stack->add(l1);
     }
+    if (0)
     {
         auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(), 3, 3);
         l1->setMomentum(.9);
@@ -254,14 +294,17 @@ void TrainMnist::Private::createNet()
     }
     if (0)
     {
-        auto l1 = new MNN::Perceptron<Float, ConvAct>(trainSet.width()*trainSet.height(), 50);
+        auto l1 = new MNN::Perceptron<Float, ConvAct>(trainSet.width()*trainSet.height(),
+                                                      50, 0.1);
         l1->setMomentum(.9);
         stack->add(l1);
     }
     net.add(stack);
+
+    // -- output layers --
     if (0)
     {
-        auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), 100);
+        auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), 100, 0.1);
         lout->setMomentum(.9);
         net.add(lout);
     }
@@ -269,7 +312,7 @@ void TrainMnist::Private::createNet()
     lout->setMomentum(.9);
     net.add(lout);
 
-    learnRate = 0.0005;
+    learnRate = 0.00001;
 
     net.brainwash(0.1);
 
@@ -292,15 +335,34 @@ void TrainMnist::Private::train()
     epoch = 0;
     while (true)
     {
-        trainLabelStep();
+        if (doTrainCD && cdnet)
+            trainCDStep(*cdnet);
+        else
+            trainLabelStep();
 
         const int num = 5000;
 
-        if (epoch % 50000 == 0)
+#if 1
+        // decrease learnrate
+        if (epoch % 2000 == 0)
         {
-            if (learnRate > 0.000002)
-                learnRate *= 0.5;
+            if (learnRate > 0.00005)
+            {
+                learnRate *= 0.9;
+                //std::cout << "learnrate " << learnRate << std::endl;
+            }
         }
+#endif
+
+#if 1
+        // end unsupervised pre-training
+        if (doTrainCD && epoch >= 60000)
+        {
+            doTrainCD = false;
+            clearErrorCount();
+            //net.layer(0)->saveTextFile("rbm_mnist_noisy_200.txt");
+        }
+#endif
 
         // test performance on validation set
         // once in a while
@@ -340,8 +402,10 @@ void TrainMnist::Private::train()
                       << std::endl;
 
             clearErrorCount();
-#if 0
-            if (error_percent < 18)
+#if 1
+            if (epoch >= 120000
+             && error_percent < 18
+              && !doTrainCD)
                 runInputApproximation();
 #endif
 
@@ -376,22 +440,27 @@ void TrainMnist::Private::prepareExpectedOutput(std::vector<Float>& v, uint8_t l
 
 void TrainMnist::Private::trainLabelStep()
 {
-    const size_t numBatch = 1;
-
     for (auto& b : bufErr)
         b = 0.;
 
+    size_t num = size_t(rand()) % trainSet.numSamples();
     for (size_t batch = 0; batch < numBatch; ++batch, ++epoch)
     {
         // choose a sample
-        size_t num = size_t(rand()) % trainSet.numSamples();
+        num = trainSet.nextRandomSample(num);
         uint8_t label = trainSet.label(num);
+#if 0
         const Float *image = trainSet.image(num);
+#else
+        const Float *image = trainSet.getNoisyBackgroundImage(
+                    num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
+        //printStateAscii(image, trainSet.width(), trainSet.height());
+#endif
 
         // prepare expected output
         prepareExpectedOutput(bufExp, label);
 
-    #if 0
+    #if 1
         net.fprop(image, &bufOut[0]);
     #else // with noise
         for (size_t i=0; i<bufIn.size(); ++i)
@@ -406,11 +475,11 @@ void TrainMnist::Private::trainLabelStep()
             //if (std::abs(e) > 0.05)
             //    e = e > 0. ? 1. : -1.;
             //e = std::max(Float(-1), std::min(Float(1), e));
-            e = e * e * e;
+            //e = e * e * e;
             bufErr[i] += e;
         }
 
-        getLabelError(label);
+        getLabelError(net, label);
     }
 
     // scale error by batch size
@@ -424,7 +493,8 @@ void TrainMnist::Private::trainLabelStep()
     net.bprop(&bufErr[0], NULL, learnRate);
 }
 
-int TrainMnist::Private::getLabelError(int label)
+template <class Net>
+int TrainMnist::Private::getLabelError(const Net& net, int label)
 {
     // get error from actual label number
     int answer = -1;
@@ -465,16 +535,25 @@ void TrainMnist::Private::testPerformance()
 {
     clearErrorCount();
 
+    // select the test set
     auto& set = testSet;
+
+    // get a net copy
+    auto net = this->net.getCopy();
+    // set dropout mode to PERFORM
+    // Note: PERFORM mode is ignored for
+    // networks that havn't been trained with dropout
+    if (auto d = dynamic_cast<MNN::SetDropOutInterface<Float>*>(net))
+        d->setDropOutMode(MNN::DO_PERFORM);
 
     for (size_t num=0; num < set.numSamples(); ++num)
     {
         uint8_t label = set.label(num);
         const Float *image = set.image(num);
 
-        net.fprop(image, &bufOut[0]);
+        net->fprop(image, &bufOut[0]);
 
-        int answer = getLabelError(label);
+        int answer = getLabelError(*net, label);
         (void)answer;
 #if 0
         if (error)
@@ -494,27 +573,73 @@ void TrainMnist::Private::testPerformance()
         std::cout << " " << std::setw(3) << errorsPerClass[j];
     std::cout << ", E " << error_count
               << std::endl;
+
+    delete net;
 }
 
 void TrainMnist::Private::runInputApproximation()
 {
-    GenerateInput<Float> gen(0.2, 0.21);
+    // get a net copy
+    auto net = this->net.getCopy();
+    if (auto d = dynamic_cast<MNN::SetDropOutInterface<Float>*>(net))
+        d->setDropOutMode(MNN::DO_PERFORM);
 
-    std::vector<Float> output(net.numOut());
-    prepareExpectedOutput(output, 1);
+    GenerateInput<Float> gen(-0.1, 0.1);
+
+    std::vector<Float> output(net->numOut());
+    prepareExpectedOutput(output, 8);
     gen.setExpectedOutput(&output[0], output.size());
 
     const size_t numIt = 1000;
     size_t it = 0;
     while (true)
     {
-        gen.approximateInput(net, numIt);
+        gen.approximateInput(*net, numIt);
         it += numIt;
 
         std::cout << "iteration " << it << ", error best " << gen.error()
                   << ", worst " << gen.errorWorst() << "\n";
         printStateAscii(gen.input(), trainSet.width(), trainSet.height());
-        printState(gen.output(), net.numOut(), 1);
+        printState(gen.output(), net->numOut(), 1);
         std::cout << std::endl;
     }
+}
+
+template <class Rbm>
+void TrainMnist::Private::trainCDStep(Rbm& rbm)
+{
+    // choose a sample
+    uint32_t num = uint32_t(rand()) % trainSet.numSamples();
+    uint8_t label = trainSet.label(num);
+#if 0
+    const Float *image = trainSet.image(num);
+#else
+    const Float *image = trainSet.getNoisyBackgroundImage(
+                num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
+    //printStateAscii(image, trainSet.width(), trainSet.height());
+#endif
+
+    error = rbm.contrastive_divergence(image, 1, learnRate);
+    error *= 100.;
+
+    ++epoch;
+
+    if (error == 0 || error > 5)
+    {
+        ++error_count;
+        ++errorsPerClass[label];
+    }
+
+    // -- get error stats --
+
+    error_sum += error;
+    error_max = std::max(error_max, error);
+    if (error > 0.)
+    {
+        if (error_min < 0.)
+            error_min = error;
+        else
+            error_min = std::min(error_min, error);
+    }
+
 }

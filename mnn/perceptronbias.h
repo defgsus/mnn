@@ -16,13 +16,17 @@
 #include <iostream>
 
 #include "layer.h"
+#include "interface.h"
 
 namespace MNN {
 
 /** Perceptron with bias cells.
     Not perfectly working yet */
 template <typename Float, class ActFunc>
-class PerceptronBias : public Layer<Float>
+class PerceptronBias
+        : public Layer<Float>
+        , public GetMomentumInterface<Float>
+        , public SetMomentumInterface<Float>
 {
     public:
 
@@ -30,11 +34,22 @@ class PerceptronBias : public Layer<Float>
 
     virtual ~PerceptronBias();
 
+    // ----------- copying -------------------
+
+    virtual PerceptronBias<Float, ActFunc> * cloneClass() const override
+        { return new PerceptronBias<Float, ActFunc>(numIn(), numOut(), learnRate_); }
+
+    virtual PerceptronBias<Float, ActFunc>& operator = (const Layer<Float>&) override;
+
+    // --------- MomentumInterface -----------
+
+    virtual Float momentum() const override { return momentum_; }
+    virtual void setMomentum(Float m) override { momentum_ = m; }
+
+    // ---
+
     Float learnRateBias() const { return learnRateBias_; }
     void setLearnRateBias(Float lr) { learnRateBias_ = lr; }
-
-    Float momentum() const { return momentum_; }
-    void setMomentum(Float m) { momentum_ = m; }
 
     // ----------- nn interface --------------
 
@@ -61,7 +76,8 @@ class PerceptronBias : public Layer<Float>
     virtual const char * id() const override { return "PerceptronBias"; }
     virtual const char * name() const override { return "PerceptronBias"; }
     virtual size_t numParameters() const override { return weight_.size() + bias_.size(); }
-    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void info(std::ostream &out = std::cout,
+                      const std::string& postFix = "") const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 
     virtual Float getWeightAverage() const override;

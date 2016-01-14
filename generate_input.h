@@ -74,7 +74,7 @@ void GenerateInput<Float>::mutateInput()
 {
     for (auto& i : input_)
         if (MNN::rnd(0., 1.) < 0.3)
-            i = std::max(-.1, std::min(1.,
+            i = std::max(-1., std::min(1.,
                     i + MNN::rnd(-1., 1.) * MNN::rnd(0., .002)
                                      ));
 }

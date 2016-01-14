@@ -43,7 +43,8 @@ HEADERS += \
     printstate.h \
     mnn/convolution.h \
     mnn/stack_parallel.h \
-    generate_input.h
+    generate_input.h \
+    mnn/interface.h
 
 OTHER_FILES += \
     .gitignore \

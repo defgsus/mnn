@@ -18,20 +18,6 @@
 namespace MNN {
 
 
-/** XXX Not used yet */
-enum DropOutMode
-{
-    /** No drop-out */
-    DO_OFF,
-    /** Drop-out during training.
-        Hidden cells are disabled with a probability of .5 */
-    DO_TRAIN,
-    /** Drop-out during performance.
-        A network trained with DO_TRAIN will half the output
-        of the hidden cells */
-    DO_PERFORM
-};
-
 
 
 /** NN-Layer base class (abstract).
@@ -69,12 +55,29 @@ enum DropOutMode
 template <typename Float>
 class Layer
 {
+    Layer(const Layer<Float>&) = delete;
+
 	public:
 
     // ----------- ctor ----------------------
 
 	Layer() { }
 	virtual ~Layer() { }
+
+    // ----------- copying -------------------
+
+    /** Clones the class type (with constructor parameters).
+        No deep copy */
+    virtual Layer<Float>* cloneClass() const = 0;
+
+    /** Returns a new instance with everything deep-copied
+        (using operator=) */
+    virtual Layer<Float>* getCopy() const { auto l = cloneClass(); *l = *this; return l; }
+
+    /** Deep-copy the given layer into this class.
+        Does nothing if the class does not match. */
+    virtual Layer<Float>& operator = (const Layer<Float>&) = 0;
+
 
 	// ----------- nn interface --------------
 
@@ -145,7 +148,8 @@ class Layer
     virtual size_t numParameters() const = 0;
 
     /** Print an overview of the network */
-	virtual void info(std::ostream &out = std::cout) const = 0;
+    virtual void info(std::ostream &out = std::cout,
+                      const std::string& postFix = "") const = 0;
 
     /** Print (complete) internal data */
 	virtual void dump(std::ostream &out = std::cout) const = 0;

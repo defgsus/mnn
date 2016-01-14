@@ -26,6 +26,27 @@ MNN_PERCEPTRONBIAS::~PerceptronBias()
 
 }
 
+MNN_TEMPLATE
+PerceptronBias<Float, ActFunc>& MNN_PERCEPTRONBIAS::operator = (const Layer<Float>& layer)
+{
+    auto net = dynamic_cast<const PerceptronBias<Float, ActFunc>*>(&layer);
+    if (!net)
+        return *this;
+
+    input_ = net->input_;
+    bias_ = net->bias_;
+    output_ = net->output_;
+    weight_ = net->weight_;
+    prevDelta_ = net->prevDelta_;
+
+    learnRate_ = net->learnRate_;
+    learnRateBias_ = net->learnRateBias_;
+    momentum_ = net->momentum_;
+
+    return *this;
+}
+
+
 // ---------------- io -------------------
 
 MNN_TEMPLATE
@@ -255,15 +276,15 @@ Float MNN_PERCEPTRONBIAS::getWeightAverage() const
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::info(std::ostream &out) const
+void MNN_PERCEPTRONBIAS::info(std::ostream &out, const std::string& pf) const
 {
-    out <<   "name       : " << name()
-        << "\nlearnrate  : " << learnRate_ << " (bias: " << learnRateBias_ << ")"
-        << "\nmomentum   : " << momentum_
-        << "\nactivation : " << ActFunc::static_name()
-        << "\ninputs     : " << numIn()
-        << "\noutputs    : " << numOut()
-        << "\nparameters : " << numParameters()
+    out <<         pf << "name       : " << name()
+        << "\n" << pf << "learnrate  : " << learnRate_ << " (bias: " << learnRateBias_ << ")"
+        << "\n" << pf << "momentum   : " << momentum_
+        << "\n" << pf << "activation : " << ActFunc::static_name()
+        << "\n" << pf << "inputs     : " << numIn()
+        << "\n" << pf << "outputs    : " << numOut()
+        << "\n" << pf << "parameters : " << numParameters()
         << "\n";
 }
 

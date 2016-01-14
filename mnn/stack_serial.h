@@ -13,17 +13,41 @@
 #include <iostream>
 
 #include "layer.h"
+#include "interface.h"
 
 namespace MNN {
 
 template <typename Float>
-class StackSerial : public Layer<Float>
+class StackSerial
+        : public Layer<Float>
+        , public SetMomentumInterface<Float>
+        , public SetDropOutInterface<Float>
 {
 	public:
 
 	StackSerial();
 
 	virtual ~StackSerial();
+
+    // ----------- copying -------------------
+
+    virtual StackSerial<Float> * cloneClass() const override
+        { return new StackSerial<Float>(); }
+
+    virtual StackSerial<Float>& operator = (const Layer<Float>&) override;
+
+    // --------- MomentumInterface -----------
+
+    /** Sets momentum for ALL layers */
+    virtual void setMomentum(Float m) override;
+
+    // --------- DropOutInterface ------------
+
+    /** Sets dropout mode for ALL layers */
+    virtual void setDropOutMode(DropOutMode m) override;
+
+    /** Sets dropout probability for ALL layers */
+    virtual void setDropOut(Float probability) override;
 
 	// ----------- nn interface --------------
 
@@ -45,6 +69,9 @@ class StackSerial : public Layer<Float>
         { layer_.front()->setWeight(input, output, w); }
 
 	// ------- layer interface ---------------
+
+    /** Destroys all layers */
+    void clearLayers();
 
 	/** return nr of layers */
     size_t numLayer() const;
@@ -77,7 +104,8 @@ class StackSerial : public Layer<Float>
     virtual const char * id() const override { return "StackSerial"; }
     virtual const char * name() const override { return "StackSerial"; }
     virtual size_t numParameters() const override;
-    virtual void info(std::ostream &out = std::cout) const override;
+    virtual void info(std::ostream &out = std::cout,
+                      const std::string& postFix = "") const override;
     virtual void dump(std::ostream &out = std::cout) const override;
 
     virtual Float getWeightAverage() const override;
