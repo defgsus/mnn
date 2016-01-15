@@ -1,23 +1,24 @@
-/** @file mnistset.h
+/** @file
 
-    @brief MNIST Handwritten Digits loader
+    @brief
 
-    <p>(c) 2015, stefan.berke@modular-audio-graphics.com</p>
+    <p>(c) 2016, stefan.berke@modular-audio-graphics.com</p>
     <p>All rights reserved</p>
 
-    <p>created 12/21/2015</p>
+    <p>created 1/15/2016</p>
 */
 
-#ifndef MNISTSET_H_INCLUDED
-#define MNISTSET_H_INCLUDED
+#ifndef MNN_CIFARSET_H
+#define MNN_CIFARSET_H
 
 #include <cinttypes>
 #include <vector>
 
-class MnistSet
+/** Currently grayscale CIFAR-10 support */
+class CifarSet
 {
 public:
-    MnistSet();
+    CifarSet();
 
     void scale(uint32_t width, uint32_t height);
 
@@ -35,18 +36,13 @@ public:
     /** Returns the next random sample number with a different label */
     uint32_t nextRandomSample(uint32_t index) const;
 
-    /** Returns the given image with a noisy background.
-        Background is considered as values below @p backgroundThreshold.
-        @note Returned pointer is valid until next call to this function. */
-    const float* getNoisyBackgroundImage(
-            uint32_t index, float backgroundThreshold, float minRnd, float maxRnd);
-    const float* getNoisyImage(
-            uint32_t index, float minRnd, float maxRnd);
-
     // ------------- io -------------
 
+    /** Clears all data */
+    void clear();
+
     /** Throws MNN::Exception on any error */
-    void load(const char* labelName, const char* imageName);
+    void load(const char* filename);
 
     /** Returns the mean of all pixel values */
     float getMean() const;
@@ -57,9 +53,8 @@ public:
 private:
 
     uint32_t p_width_, p_height_;
-    std::vector<float> p_images_, p_processed_;
+    std::vector<float> p_images_;
     std::vector<uint8_t> p_labels_;
 };
 
-
-#endif // MNISTSET_H_INCLUDED
+#endif // MNN_CIFARSET_H

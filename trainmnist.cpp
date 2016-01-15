@@ -8,18 +8,30 @@
     <p>created 12/21/2015</p>
 */
 
+// use cifar instead of mnist
+#define CIFAR
+
 #include <fstream>
 #include <iomanip>
 
 #include "mnn/mnn.h"
 #include "trainmnist.h"
-#include "mnistset.h"
+#ifdef CIFAR
+#   include "cifarset.h"
+#else
+#   include "mnistset.h"
+#endif
 #include "printstate.h"
 #include "generate_input.h"
 
 struct TrainMnist::Private
 {
     typedef float Float;
+#ifdef CIFAR
+    typedef CifarSet DataSet;
+#else
+    typedef MnistSet DataSet;
+#endif
 
     Private()
         : doTrainCD (false)
@@ -31,7 +43,7 @@ struct TrainMnist::Private
     void createNet();
     void clearErrorCount();
     void prepareExpectedOutput(std::vector<Float>& v, uint8_t label) const;
-    const Float* getImage(MnistSet& set, uint32_t index) const;
+    const Float* getImage(DataSet& set, uint32_t index) const;
     void train();
     void trainLabelStep();
     template <class Rbm>
@@ -46,7 +58,7 @@ struct TrainMnist::Private
 
     void runInputApproximation();
 
-    MnistSet trainSet, testSet;
+    DataSet trainSet, testSet;
     MNN::StackSerial<Float> net;
     std::vector<Float> bufIn, bufExp, bufOut, bufErr;
     std::vector<size_t> errorsPerClass;
@@ -81,24 +93,45 @@ void TrainMnist::Private::loadSet()
 {
     try
     {
+#ifdef CIFAR
+        trainSet.load("/home/defgsus/prog/DATA/cifar-10/data_batch_1.bin");
+        trainSet.load("/home/defgsus/prog/DATA/cifar-10/data_batch_2.bin");
+        trainSet.load("/home/defgsus/prog/DATA/cifar-10/data_batch_3.bin");
+        trainSet.load("/home/defgsus/prog/DATA/cifar-10/data_batch_4.bin");
+        trainSet.load("/home/defgsus/prog/DATA/cifar-10/data_batch_5.bin");
+        testSet.load("/home/defgsus/prog/DATA/cifar-10/test_batch.bin");
+#else
         trainSet.load("/home/defgsus/prog/DATA/mnist/train-labels.idx1-ubyte",
                       "/home/defgsus/prog/DATA/mnist/train-images.idx3-ubyte");
         trainSet.normalize();
         testSet.load("/home/defgsus/prog/DATA/mnist/t10k-labels.idx1-ubyte",
                       "/home/defgsus/prog/DATA/mnist/t10k-images.idx3-ubyte");
         testSet.normalize();
-
-        std::cout << "loaded mnist set: "
+#endif
+        std::cout << "loaded set: "
                   << trainSet.width() << "x" << trainSet.height()
                   << " x " << trainSet.numSamples()
                   << " (" << testSet.numSamples() << " testing)"
                   << std::endl;
     }
-    catch (const mnist_exception& e)
+    catch (const MNN::Exception& e)
     {
         std::cerr << e.what() << std::endl;
         return;
     }
+}
+
+const TrainMnist::Private::Float*
+TrainMnist::Private::getImage(DataSet &set, uint32_t num) const
+{
+#if 1
+    return set.image(num);
+#else
+    const Float *image = set.getNoisyBackgroundImage(
+                num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
+    //printStateAscii(image, trainSet.width(), trainSet.height());
+    return image;
+#endif
 }
 
 void TrainMnist::Private::saveAllLayers(const std::string& postfix)
@@ -116,7 +149,7 @@ void TrainMnist::Private::saveAllLayers(const std::string& postfix)
 void TrainMnist::Private::createNet()
 {
     size_t numIn = trainSet.width() * trainSet.height(),
-           numOut = 10;
+           numOut = trainSet.numClasses();
     bufIn.resize(numIn);
     bufExp.resize(numOut);
     bufOut.resize(numOut);
@@ -126,7 +159,7 @@ void TrainMnist::Private::createNet()
     numBatch = 1;
     doTrainCD = false;
 
-#if 1
+#if 0
     // --- load autoencoder stack ----
     for (int i=0; i<5; ++i)
     {
@@ -466,18 +499,6 @@ void TrainMnist::Private::prepareExpectedOutput(std::vector<Float>& v, uint8_t l
     v[label] = .9;
 }
 
-const TrainMnist::Private::Float*
-TrainMnist::Private::getImage(MnistSet &set, uint32_t num) const
-{
-#if 0
-    return set.image(num);
-#else
-    const Float *image = set.getNoisyBackgroundImage(
-                num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
-    //printStateAscii(image, trainSet.width(), trainSet.height());
-    return image;
-#endif
-}
 
 void TrainMnist::Private::trainLabelStep()
 {
@@ -490,13 +511,7 @@ void TrainMnist::Private::trainLabelStep()
         // choose a sample
         num = trainSet.nextRandomSample(num);
         uint8_t label = trainSet.label(num);
-#if 0
-        const Float *image = trainSet.image(num);
-#else
-        const Float *image = trainSet.getNoisyBackgroundImage(
-                    num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
-        //printStateAscii(image, trainSet.width(), trainSet.height());
-#endif
+        const Float* image = getImage(trainSet, num);
 
         // prepare expected output
         prepareExpectedOutput(bufExp, label);
@@ -652,13 +667,7 @@ void TrainMnist::Private::trainCDStep(Rbm& rbm)
     // choose a sample
     uint32_t num = uint32_t(rand()) % trainSet.numSamples();
     uint8_t label = trainSet.label(num);
-#if 0
-    const Float *image = trainSet.image(num);
-#else
-    const Float *image = trainSet.getNoisyBackgroundImage(
-                num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
-    //printStateAscii(image, trainSet.width(), trainSet.height());
-#endif
+    const Float* image = getImage(trainSet, num);
 
     error = rbm.contrastiveDivergence(image, 1, learnRate);
     error *= 100.;

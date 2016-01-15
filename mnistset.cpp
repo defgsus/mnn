@@ -15,7 +15,7 @@
 
 #include "mnistset.h"
 #include "mnn/function.h"
-
+#include "mnn/exception.h"
 
 
 
@@ -41,7 +41,7 @@ void MnistSet::load(const char* labelName, const char* imageName)
 
     FILE* f = fopen(labelName, "rb");
     if (!f)
-        throw mnist_exception("could not open label file");
+        MNN_EXCEPTION("could not open label file '" << labelName << "'");
 
     uint32_t v, num;
     fread(&v, 4, 1, f);
@@ -49,7 +49,7 @@ void MnistSet::load(const char* labelName, const char* imageName)
     if (v != 0x801)
     {
         fclose(f);
-        throw mnist_exception("label file header not right");
+        MNN_EXCEPTION("label file header not right");
     }
 
     fread(&num, 4, 1, f);
@@ -63,14 +63,14 @@ void MnistSet::load(const char* labelName, const char* imageName)
 
     f = fopen(imageName, "rb");
     if (!f)
-        throw mnist_exception("could not open image file");
+        MNN_EXCEPTION("could not open image file '" << imageName << "'");
 
     fread(&v, 4, 1, f);
     swap_bo(v);
     if (v != 0x803)
     {
         fclose(f);
-        throw mnist_exception("image file header not right");
+        MNN_EXCEPTION("image file header not right");
     }
 
     fread(&num, 4, 1, f);
@@ -79,7 +79,7 @@ void MnistSet::load(const char* labelName, const char* imageName)
     if (num != p_labels_.size())
     {
         fclose(f);
-        throw mnist_exception("wrong number of samples in image file");
+        MNN_EXCEPTION("wrong number of samples in image file");
     }
 
     fread(&p_width_, 4, 1, f);
@@ -93,7 +93,7 @@ void MnistSet::load(const char* labelName, const char* imageName)
     if (tmp.size() != fread(&tmp[0], 1, tmp.size(), f))
     {
         fclose(f);
-        throw mnist_exception("not enough data in image file");
+        MNN_EXCEPTION("not enough data in image file");
     }
 
     fclose(f);

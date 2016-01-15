@@ -8,6 +8,7 @@
 //#include "trainposition.h"
 #include "trainmnist.h"
 #include "mnistset.h"
+#include "cifarset.h"
 #include "printstate.h"
 #include "generate_input.h"
 
@@ -739,11 +740,18 @@ void trainAutoencoderStack()
 {
     const Float sizeScale = .75;
 
+#if 0
     MnistSet set;
     set.load("/home/defgsus/prog/DATA/mnist/train-labels.idx1-ubyte",
              "/home/defgsus/prog/DATA/mnist/train-images.idx3-ubyte");
     set.normalize();
     set.scale(14, 14);
+#else
+    CifarSet set;
+    set.load("/home/defgsus/prog/DATA/cifar-10/data_batch_1.bin");
+    set.normalize();
+    set.scale(16, 16);
+#endif
     size_t numIn = set.width() * set.height();
 
     auto net = new MNN::StackSerial<Float>();
@@ -807,7 +815,7 @@ void trainAutoencoderStack()
                 && epoch > 120000)
             {
                 net->add(layer);
-                net->saveTextFile("../autoencoder-stack-mnist.txt");
+                net->saveTextFile("../autoencoder-stack-cifar.txt");
 
                 size_t newOut = net->numOut() * sizeScale;
                 if (newOut < 100)
@@ -827,6 +835,17 @@ void trainAutoencoderStack()
 }
 
 
+void testCifar()
+{
+    CifarSet set;
+    set.load("/home/defgsus/prog/DATA/cifar-10/data_batch_1.bin");
+
+    for (int i=0; i<1000; ++i)
+    {
+        printStateAscii(set.image(i), set.width(), set.height());
+        std::cin.get();
+    }
+}
 
 
 int main()
@@ -840,7 +859,8 @@ int main()
     //testRbm<float>();
     //trainRbmPyramid();
 
-    trainAutoencoderStack<float>();
+    //testCifar();
+    //trainAutoencoderStack<float>();
 
 	return 0;
 }

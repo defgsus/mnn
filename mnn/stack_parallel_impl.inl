@@ -274,7 +274,16 @@ MNN_TEMPLATE
 void MNN_STACKPARALLEL::info(std::ostream &out, const std::string& pf) const
 {
     out <<         pf << "name      : " << name()
-        << "\n" << pf << "parameters: " << numParameters()
+        << "\n" << pf << "layout    : ";
+    if (layer_.empty())
+        out << "empty";
+    else
+    {
+        out << layer_[0]->numIn() << "-" << layer_[0]->numOut();
+        for (size_t i=1; i<layer_.size(); ++i)
+            out << " | " << layer_[i]->numIn() << "-" << layer_[i]->numOut();
+    }
+    out << "\n" << pf << "parameters: " << numParameters()
         << "\n";
     size_t k = 1;
     for (auto l = layer_.begin(); l != layer_.end(); ++l, ++k)

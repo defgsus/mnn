@@ -25,7 +25,8 @@ SOURCES += \
     mnn/perceptronbias_impl.inl \
     mnn/rbm_impl.inl \
     mnn/convolution_impl.inl \
-    mnn/stack_parallel_impl.inl
+    mnn/stack_parallel_impl.inl \
+    cifarset.cpp
 
 HEADERS += \
     trainposition.h \
@@ -44,7 +45,8 @@ HEADERS += \
     mnn/convolution.h \
     mnn/stack_parallel.h \
     generate_input.h \
-    mnn/interface.h
+    mnn/interface.h \
+    cifarset.h
 
 OTHER_FILES += \
     .gitignore \
