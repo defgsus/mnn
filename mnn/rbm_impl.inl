@@ -247,7 +247,7 @@ void MNN_RBM::bprop(const Float * error, Float * error_output,
 }
 
 MNN_TEMPLATE
-Float MNN_RBM::contrastive_divergence(const Float* input, size_t numSteps, Float learn_rate)
+Float MNN_RBM::contrastiveDivergence(const Float* input, size_t numSteps, Float learn_rate)
 {
     copyInput_(input);
 
@@ -336,7 +336,7 @@ void MNN_RBM::copyInput_(const Float* input)
         for (auto i = input_.begin(); i != input_.end(); ++i, ++input)
             *i = *input;
     else
-        for (size_t i=0; i<input_.size(); ++i, ++input)
+        for (size_t i=0; i<input_.size()-1; ++i, ++input)
             input_[i] = *input;
 }
 

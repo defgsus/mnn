@@ -415,7 +415,7 @@ public:
             }
 
             // contrastive divergance training
-            Float err = rbm->contrastive_divergence(&sample->data[0], cdSteps_, learnRate_);
+            Float err = rbm->contrastiveDivergence(&sample->data[0], cdSteps_, learnRate_);
             //err = err / (rbm->numOut() * rbm->numIn()) * 100;
             sample->err_cd = err;
 
@@ -635,7 +635,7 @@ void testRbm()
 #ifdef MNIST
         size_t idx = rand() % set.numSamples();
         //idx = idx % 10;
-        err = rbm->contrastive_divergence(set.image(idx), 2, 0.0005);
+        err = rbm->contrastiveDivergence(set.image(idx), 2, 0.0005);
         err = 100 * err / (rbm->numOut() * rbm->numIn());
         //err = rbm->compareInput(set.image(idx));
 #else
@@ -668,16 +668,82 @@ void testRbm()
 }
 
 
+template <typename Float>
+void trainRecon()
+{
+    MnistSet set;
+    set.load("/home/defgsus/prog/DATA/mnist/train-labels.idx1-ubyte",
+             "/home/defgsus/prog/DATA/mnist/train-images.idx3-ubyte");
+    set.scale(14, 14);
+    size_t numIn = set.width() * set.height();
+
+    auto net = new MNN::Perceptron<Float, MNN::Activation::Linear>(
+                numIn, numIn/2, 1, false);
+    net->setMomentum(.9);
+    net->brainwash(0.1);
+    //MNN::initPassThrough(net);
+    Float learnRate = 0.0002;
+
+    net->info();
+
+    size_t epoch = 0, err_count = 0;
+    Float err_sum = 0., err_min = -1., err_max = 0.,
+          lastWeights = 0.;
+    while (true)
+    {
+        uint32_t index = uint32_t(rand()) % set.numSamples();
+        const Float* image = set.image(index);
+        const Float* noise_image
+                = set.getNoisyImage(index, MNN::rnd(-0.3,.0), MNN::rnd(0.,.3));
+
+        Float error = 100. * net->reconstructionTraining(noise_image, image, learnRate);
+        ++epoch;
+
+        err_sum += error;
+        if (err_min < 0. || error < err_min)
+            err_min = error;
+        err_max = std::max(err_max, error);
+        ++err_count;
+
+        if (epoch % 5000 == 0)
+        {
+            Float weights = net->getWeightAverage();
+            LOG("epoch " << std::left << std::setw(8) << epoch
+                << " error " << std::setw(9) << err_min
+                << " - " << std::setw(9) << err_max
+                << " av " << std::setw(9) << (err_sum / err_count)
+                << " weights " << std::setw(9) << weights
+                << " inc " << std::setw(9) << ((weights - lastWeights) / learnRate)
+                );
+
+            lastWeights = weights;
+            err_sum = err_max = 0.;
+            err_min = -1.;
+            err_count = 0;
+
+            //printStateAscii(net->weights(), set.width(), set.height(), 8.f);
+#if 0
+            std::vector<Float> recon(numIn);
+            net->reconstruct(image, &recon[0]);
+            printStateAscii(&recon[0], set.width(), set.height());
+#endif
+        }
+    }
+}
+
+
 int main()
 {
 	srand(time(NULL));
 
     //TrainPosition t; t.exec(); return 0;
-    TrainMnist t; t.exec(); return 0;
+    //TrainMnist t; t.exec(); return 0;
 
     //maint<double>();
     //testRbm<float>();
     //trainRbmPyramid();
+
+    trainRecon<float>();
 
 	return 0;
 }

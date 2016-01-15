@@ -59,6 +59,8 @@ class Layer
 
 	public:
 
+    typedef Float type;
+
     // ----------- ctor ----------------------
 
 	Layer() { }

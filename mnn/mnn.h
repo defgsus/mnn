@@ -26,14 +26,14 @@ namespace MNN {
     and sets all weights to zero except the weight connecting
     the same input and output cell. */
 template <class Layer>
-void initPassThrough(Layer* layer, size_t numInOut = 0)
+void initPassThrough(Layer* layer, typename Layer::type amplitude = 1, size_t numInOut = 0)
 {
     if (numInOut != 0)
         layer->resize(numInOut, numInOut);
     layer->brainwash();
     for (size_t o=0; o<layer->numOut(); ++o)
     for (size_t i=0; i<layer->numIn(); ++i)
-        layer->setWeight(i, o, i == o);
+        layer->setWeight(i, o, (i == o) * amplitude);
 }
 
 

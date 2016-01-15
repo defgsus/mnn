@@ -88,10 +88,37 @@ class ContrastiveDivergenceInterface
 {
 public:
     /** Returns the average absolute reconstruction error. */
-    virtual Float contrastive_divergence(
+    virtual Float contrastiveDivergence(
             const Float* input, size_t numSteps = 1, Float learn_rate = 1) = 0;
 };
 
+
+
+// ------- reconstruction / auto-encoding ------
+
+template <typename Float>
+class ReconstructionInterface
+{
+public:
+
+    /** Build a reconstruction from the input */
+    virtual void reconstruct(const Float* input, Float* reconstruction) = 0;
+
+    /** One training step to reconstruct the input.
+        @returns the average absolute error */
+    virtual Float reconstructionTraining(
+            const Float* input, Float learn_rate = 1)
+        { return reconstructionTraining(input, input, learn_rate); }
+
+    /** One training step to reconstruct the input.
+        For training a denoising auto-encoder.
+        @p encoder_input will be encoded and decoded and compared
+        with @p expected_input to calculate the construction error.
+        @returns the average absolute error */
+    virtual Float reconstructionTraining(
+            const Float* encoder_input, const Float* expected_input,
+            Float learn_rate = 1) = 0;
+};
 
 } // namespace MNN
 

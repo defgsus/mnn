@@ -31,10 +31,13 @@ struct TrainMnist::Private
     void createNet();
     void clearErrorCount();
     void prepareExpectedOutput(std::vector<Float>& v, uint8_t label) const;
+    const Float* getImage(MnistSet& set, uint32_t index) const;
     void train();
     void trainLabelStep();
     template <class Rbm>
     void trainCDStep(Rbm& rbm);
+    template <class Net>
+    void trainReconStep(Net& net);
     /** Runs all test images and gathers errors */
     void testPerformance();
     /** Gets error and stats, returns label from net */
@@ -123,7 +126,7 @@ void TrainMnist::Private::createNet()
     numBatch = 1;
     doTrainCD = false;
 
-#if 1
+#if 0
     auto l1 = new MNN::Rbm<Float, MNN::Activation::Linear>(numIn, 200);
     //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
     //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
@@ -158,7 +161,7 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);*/
 #endif
 
-#elif 0
+#elif 1
     // ----- classic dense matrix -----
 
     typedef MNN::Activation::LinearRectified Act;
@@ -337,6 +340,12 @@ void TrainMnist::Private::train()
     {
         if (doTrainCD && cdnet)
             trainCDStep(*cdnet);
+#if 1
+        else if (auto rec = dynamic_cast<MNN::ReconstructionInterface<Float>*>(net.layer(0)))
+        {
+            trainReconStep(*rec);
+        }
+#endif
         else
             trainLabelStep();
 
@@ -436,6 +445,19 @@ void TrainMnist::Private::prepareExpectedOutput(std::vector<Float>& v, uint8_t l
     for (auto& f : v)
         f = 0.0;
     v[label] = .9;
+}
+
+const TrainMnist::Private::Float*
+TrainMnist::Private::getImage(MnistSet &set, uint32_t num) const
+{
+#if 0
+    return set.image(num);
+#else
+    const Float *image = set.getNoisyBackgroundImage(
+                num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
+    //printStateAscii(image, trainSet.width(), trainSet.height());
+    return image;
+#endif
 }
 
 void TrainMnist::Private::trainLabelStep()
@@ -619,7 +641,39 @@ void TrainMnist::Private::trainCDStep(Rbm& rbm)
     //printStateAscii(image, trainSet.width(), trainSet.height());
 #endif
 
-    error = rbm.contrastive_divergence(image, 1, learnRate);
+    error = rbm.contrastiveDivergence(image, 1, learnRate);
+    error *= 100.;
+
+    ++epoch;
+
+    if (error == 0 || error > 5)
+    {
+        ++error_count;
+        ++errorsPerClass[label];
+    }
+
+    // -- get error stats --
+
+    error_sum += error;
+    error_max = std::max(error_max, error);
+    if (error > 0.)
+    {
+        if (error_min < 0.)
+            error_min = error;
+        else
+            error_min = std::min(error_min, error);
+    }
+}
+
+template <class Net>
+void TrainMnist::Private::trainReconStep(Net& net)
+{
+    // choose a sample
+    uint32_t num = uint32_t(rand()) % trainSet.numSamples();
+    uint8_t label = trainSet.label(num);
+    const Float* image = getImage(trainSet, num);
+
+    error = net.reconstructionTraining(image, learnRate * 0.001);
     error *= 100.;
 
     ++epoch;

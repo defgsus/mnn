@@ -73,7 +73,7 @@ class Rbm
 
     /** Contrastive divergence training.
         Returns the summed absolute reconstruction error */
-    virtual Float contrastive_divergence(
+    virtual Float contrastiveDivergence(
             const Float* input, size_t numSteps = 1, Float learn_rate = 1) override;
 
     /** Returns the sum of the absolute difference between

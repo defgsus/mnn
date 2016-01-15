@@ -69,6 +69,26 @@ struct DenseMatrix
     }
 
     /** Forward propagate @p input into @p output
+        using transposed weight matrix. */
+    template <typename Float, class Activation>
+    static void fprop_transpose(
+            const Float* input, Float* output, const Float* weight,
+            size_t numIn, size_t numOut)
+    {
+        for (size_t o = 0; o < numOut; ++o, ++output)
+        {
+            Float sum = 0;
+            const Float* inp = input;
+            for (auto i = 0; i < numIn; ++i, ++inp)
+            {
+                sum += *inp * weight[i * numOut + o];
+            }
+
+            *output = Activation::activation(sum);
+        }
+    }
+
+    /** Forward propagate @p input into @p output
         and scale before activation */
     template <typename Float, class Activation>
     static void fprop_scale(

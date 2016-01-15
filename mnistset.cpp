@@ -9,6 +9,7 @@
 */
 
 #include <cstdio>
+#include <cassert>
 #include <exception>
 #include <iostream>
 
@@ -144,6 +145,25 @@ const float* MnistSet::getNoisyBackgroundImage(
     return &p_processed_[0];
 }
 
+const float* MnistSet::getNoisyImage(
+    uint32_t index, float minRnd, float maxRnd)
+{
+    if (p_processed_.size() != width() * height())
+        p_processed_.resize(width() * height());
+
+    const float * img = image(index);
+    for (auto& p : p_processed_)
+    {
+        float pix = *img++;
+
+        pix += MNN::rnd(minRnd, maxRnd);
+
+        p = pix;
+    }
+
+    return &p_processed_[0];
+}
+
 uint32_t MnistSet::nextRandomSample(uint32_t index) const
 {
     auto lab = label(index);
@@ -156,4 +176,25 @@ uint32_t MnistSet::nextRandomSample(uint32_t index) const
     while (lab == label(index) && count++ < numSamples());
 
     return index;
+}
+
+void MnistSet::scale(uint32_t w, uint32_t h)
+{
+    assert(w < width() && h < height());
+
+    std::vector<float> scaled;
+    for (uint32_t i = 0; i < numSamples(); ++i)
+    {
+        const float* img = image(i);
+        for (size_t y = 0; y < h; ++y)
+        for (size_t x = 0; x < w; ++x)
+        {
+            scaled.push_back(
+                        img[(y * height() / h) * width() + x * width() / w]
+                    );
+        }
+    }
+    p_width_ = w;
+    p_height_ = h;
+    p_images_ = scaled;
 }

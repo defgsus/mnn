@@ -201,7 +201,7 @@ void MNN_PERCEPTRON::fprop(const Float * input, Float * output)
         for (auto i = input_.begin(); i != input_.end(); ++i, ++input)
             *i = *input;
     else
-        for (size_t i=0; i<input_.size(); ++i, ++input)
+        for (size_t i=0; i<input_.size()-1; ++i, ++input)
             input_[i] = *input;
 
     if (dropOutMode_ == DO_TRAIN)
@@ -277,6 +277,106 @@ void MNN_PERCEPTRON::bprop(const Float * error, Float * error_output,
     }
 }
 
+MNN_TEMPLATE
+void MNN_PERCEPTRON::reconstruct(const Float* input, Float* reconstruction)
+{
+    if (!biasCell_)
+    {
+        // get code for input
+        DenseMatrix::fprop<Float, ActFunc>(
+                    input, &output_[0], &weight_[0],
+                    input_.size(), output_.size());
+
+        // get reconstruction from code
+        DenseMatrix::fprop_transpose<Float, ActFunc>(
+                    &output_[0], reconstruction, &weight_[0],
+                    output_.size(), input_.size());
+    }
+    else
+    {
+        // copy to input
+        for (size_t i=0; i<input_.size(); ++i, ++input)
+            input_[i] = *input;
+
+        // get code for input
+        DenseMatrix::fprop<Float, ActFunc>(
+                    &input_[0], &output_[0], &weight_[0],
+                    input_.size(), output_.size());
+
+        // get reconstruction space
+        if (reconInput_.size() != input_.size())
+            reconInput_.resize(input_.size());
+
+        // get reconstruction from code
+        DenseMatrix::fprop_transpose<Float, ActFunc>(
+                    &output_[0], &reconInput_[0], &weight_[0],
+                    output_.size(), input_.size());
+
+        // copy to caller
+        for (size_t i=0; i<input_.size()-1; ++i)
+            reconstruction[i] = input_[i];
+    }
+}
+
+MNN_TEMPLATE
+Float MNN_PERCEPTRON::reconstructionTraining(
+            const Float *dec_input, const Float* true_input,
+            Float global_learn_rate)
+{
+    // copy to input
+    if (!biasCell_)
+        for (auto i = input_.begin(); i != input_.end(); ++i, ++dec_input)
+            *i = *dec_input;
+    else
+        for (size_t i=0; i<input_.size()-1; ++i, ++dec_input)
+            input_[i] = *dec_input;
+
+    // get reconstruction space
+    if (reconInput_.size() != input_.size())
+        reconInput_.resize(input_.size());
+    if (reconError_.size() != input_.size())
+        reconError_.resize(input_.size());
+    if (reconOutput_.size() != output_.size())
+        reconOutput_.resize(output_.size());
+
+    // get code for input
+    DenseMatrix::fprop<Float, ActFunc>(
+                &input_[0], &output_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    // get reconstruction from code
+    DenseMatrix::fprop_transpose<Float, Activation::Linear>(
+                &output_[0], &reconInput_[0], &weight_[0],
+                output_.size(), input_.size());
+
+    // get reconstruction error
+    Float err_sum = 0.;
+    auto inp = true_input,
+         err = &reconError_[0];
+    for (auto i : reconInput_)
+    {
+        Float e = *inp++ - i;
+        err_sum += std::abs(e);
+
+        *err++ = e;//ActFunc::derivative(e, i);
+    }
+    err_sum /= input_.size();
+
+    // find optimal code
+    // (sum errors into code vector)
+    DenseMatrix::fprop<Float, Activation::Linear>(
+                &reconError_[0], &reconOutput_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    // gradient descent using code error
+    DenseMatrix::gradient_descent<Float, ActFunc>(
+                &input_[0], &output_[0], &reconOutput_[0], &weight_[0], &prevDelta_[0],
+                input_.size(), output_.size(),
+                global_learn_rate * learnRate_,
+                momentum_);
+
+    return err_sum;
+}
 
 // ----------- info -----------------------
 

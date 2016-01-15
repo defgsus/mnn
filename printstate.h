@@ -29,13 +29,14 @@ void printState(const F* state, size_t width, size_t height,
 
 template <typename F>
 void printStateAscii(const F* state, size_t width, size_t height,
-                     std::ostream& out = std::cout)
+                     F amplitude = 1, std::ostream& out = std::cout)
 {
     for (size_t j=0; j<height; ++j)
     {
         for (size_t i=0; i<width; ++i, ++state)
         {
-            out << ( *state > .7 ? '#' : *state > .35 ? '*' : *state > .15 ? ':' : '.' );
+            F s = *state * amplitude;
+            out << ( s > .7 ? '#' : s > .35 ? '*' : s > .15 ? ':' : '.' );
         }
         out << std::endl;
     }

@@ -24,6 +24,7 @@ class Perceptron
         , public SetMomentumInterface<Float>
         , public GetDropOutInterface<Float>
         , public SetDropOutInterface<Float>
+        , public ReconstructionInterface<Float>
 {
 	public:
 
@@ -50,6 +51,14 @@ class Perceptron
 
     virtual Float dropOut() const override { return dropOut_; }
     virtual void setDropOut(Float probability) override { dropOut_ = probability; }
+
+    // -------- ReconstructionInterface ------
+
+    virtual void reconstruct(const Float* input, Float* reconstruction) override;
+    using ReconstructionInterface<Float>::reconstructionTraining;
+    virtual Float reconstructionTraining(
+            const Float *decoder_input, const Float* expected_input,
+            Float learn_rate = 1) override;
 
 	// ----------- nn interface --------------
 
@@ -98,7 +107,10 @@ protected:
 		input_,
 		output_,
         weight_,
-        prevDelta_;
+        prevDelta_,
+        reconInput_,
+        reconError_,
+        reconOutput_;
     std::vector<uint8_t>
         drop_input_;
 
