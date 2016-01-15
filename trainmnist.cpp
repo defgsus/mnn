@@ -126,7 +126,26 @@ void TrainMnist::Private::createNet()
     numBatch = 1;
     doTrainCD = false;
 
-#if 0
+#if 1
+    // --- load autoencoder stack ----
+    for (int i=0; i<5; ++i)
+    {
+        auto l = new MNN::Perceptron<Float, MNN::Activation::Linear>(1, 1, 1., false);
+        l->setMomentum(.5);
+        net.add(l);
+    }
+    net.loadTextFile("../autoencoder-stack-5-mnist-14x14.txt");
+    trainSet.scale(14, 14); testSet.scale(14, 14);
+    if (net.numOut() != numOut)
+    {
+        auto l = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut, 1.);
+        l->setMomentum(.5);
+        l->brainwash(0.1);
+        net.add(l);
+    }
+    learnRate = .01;
+
+#elif 0
     auto l1 = new MNN::Rbm<Float, MNN::Activation::Linear>(numIn, 200);
     //auto l2 = new MNN::Rbm<Float, MNN::Activation::Logistic>(300, 200);
     //auto l3 = new MNN::Rbm<Float, MNN::Activation::Linear>(200, numOut, .01, true);
@@ -321,7 +340,7 @@ void TrainMnist::Private::createNet()
 
 #endif
 
-
+    assert(net.numIn() == trainSet.width() * trainSet.height());
     assert(net.numOut() == 10);
 }
 
@@ -340,7 +359,7 @@ void TrainMnist::Private::train()
     {
         if (doTrainCD && cdnet)
             trainCDStep(*cdnet);
-#if 1
+#if 0
         else if (auto rec = dynamic_cast<MNN::ReconstructionInterface<Float>*>(net.layer(0)))
         {
             trainReconStep(*rec);

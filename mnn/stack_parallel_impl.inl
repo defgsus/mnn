@@ -53,7 +53,7 @@ void MNN_STACKPARALLEL::serialize(std::ostream& s) const
     // version
     s << " " << 1;
     // dimension
-    s << " " << numLayer();
+    s << " " << numLayer() << " ";
     // each layer
     for (auto l : layer_)
         l->serialize(s);

@@ -49,7 +49,7 @@ void MNN_STACKSERIAL::serialize(std::ostream& s) const
     // version
     s << " " << 1;
     // dimension
-    s << " " << numLayer();
+    s << " " << numLayer() << " ";
     // each layer
     for (auto l : layer_)
         l->serialize(s);
@@ -303,7 +303,16 @@ MNN_TEMPLATE
 void MNN_STACKSERIAL::info(std::ostream &out, const std::string& pf) const
 {
     out <<         pf << "name      : " << name()
-        << "\n" << pf << "parameters: " << numParameters()
+        << "\n" << pf << "layout    : ";
+    if (layer_.empty())
+        out << "empty";
+    else
+    {
+        out << layer_[0]->numIn();
+        for (auto l : layer_)
+            out << " - " << l->numOut();
+    }
+    out << "\n" << pf << "parameters: " << numParameters()
         << "\n";
 	size_t k = 1;
 	for (auto l = layer_.begin(); l != layer_.end(); ++l, ++k)

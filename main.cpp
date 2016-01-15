@@ -668,6 +668,7 @@ void testRbm()
 }
 
 
+// Simple test for auto-encoding / reconstruction error
 template <typename Float>
 void trainRecon()
 {
@@ -732,18 +733,114 @@ void trainRecon()
 }
 
 
+
+template <typename Float>
+void trainAutoencoderStack()
+{
+    const Float sizeScale = .75;
+
+    MnistSet set;
+    set.load("/home/defgsus/prog/DATA/mnist/train-labels.idx1-ubyte",
+             "/home/defgsus/prog/DATA/mnist/train-images.idx3-ubyte");
+    set.normalize();
+    set.scale(14, 14);
+    size_t numIn = set.width() * set.height();
+
+    auto net = new MNN::StackSerial<Float>();
+
+    auto layer = new MNN::Perceptron<Float, MNN::Activation::Linear>(
+                    numIn, numIn * 2    , 1, false);
+    layer->setMomentum(.9);
+    layer->brainwash(0.1);
+    Float learnRate = 0.0009;
+
+    layer->info();
+
+    std::vector<Float> buffer;
+
+    size_t epoch = 0, err_count = 0;
+    Float err_sum = 0., err_min = -1., err_max = 0.,
+          lastWeights = 0.;
+    while (true)
+    {
+        // get training sample
+        uint32_t index = uint32_t(rand()) % set.numSamples();
+        const Float* image = set.image(index);
+
+        // propagate through already trained stack
+        if (net->numLayer())
+        {
+            if (buffer.size() != net->numOut())
+                buffer.resize(net->numOut());
+            net->fprop(image, &buffer[0]);
+            image = &buffer[0];
+        }
+
+        Float error = 100. * layer->reconstructionTraining(image, learnRate);
+        ++epoch;
+
+        err_sum += error;
+        if (err_min < 0. || error < err_min)
+            err_min = error;
+        err_max = std::max(err_max, error);
+        ++err_count;
+
+        if (epoch % 5000 == 0)
+        {
+            Float weightAv = layer->getWeightAverage(),
+                  weightInc = weightAv - lastWeights;
+            LOG("epoch " << std::left << std::setw(8) << epoch
+                << " error " << std::setw(9) << err_min
+                << " - " << std::setw(9) << err_max
+                << " av " << std::setw(9) << (err_sum / err_count)
+                << " weights " << std::setw(9) << weightAv
+                << " inc " << std::setw(9) << (weightInc / learnRate)
+                );
+
+            lastWeights = weightAv;
+            err_sum = err_max = 0.;
+            err_min = -1.;
+            err_count = 0;
+
+            // finished training this layer?
+            if (weightInc / learnRate < 0.01
+                && epoch > 120000)
+            {
+                net->add(layer);
+                net->saveTextFile("../autoencoder-stack-mnist.txt");
+
+                size_t newOut = net->numOut() * sizeScale;
+                if (newOut < 100)
+                    break;
+
+                layer = new MNN::Perceptron<Float, MNN::Activation::Linear>(
+                            net->numOut(), newOut, 1, false);
+                layer->setMomentum(.9);
+                layer->brainwash(0.1);
+
+                layer->info();
+
+                epoch = 0;
+            }
+        }
+    }
+}
+
+
+
+
 int main()
 {
 	srand(time(NULL));
 
     //TrainPosition t; t.exec(); return 0;
-    //TrainMnist t; t.exec(); return 0;
+    TrainMnist t; t.exec(); return 0;
 
     //maint<double>();
     //testRbm<float>();
     //trainRbmPyramid();
 
-    trainRecon<float>();
+    trainAutoencoderStack<float>();
 
 	return 0;
 }
