@@ -22,7 +22,7 @@
 
 struct AnalyzeWindow::Private
 {
-    typedef MNN::Perceptron<float, MNN::Activation::Linear> NNLayer;
+    typedef MNN::PerceptronBias<float, MNN::Activation::Linear> NNLayer;
 
     Private(AnalyzeWindow * win )
         : win       (win)
@@ -37,7 +37,7 @@ struct AnalyzeWindow::Private
 
     AnalyzeWindow * win;
 
-    StateDisplay * stateDisp;
+    StateDisplay *stateDisp, *biasDisp;
 
     NNLayer* layer;
 };
@@ -61,9 +61,12 @@ void AnalyzeWindow::Private::createWidgets()
     win->setCentralWidget(new QWidget(win));
     auto lv = new QVBoxLayout(win->centralWidget());
 
-        stateDisp = new StateDisplay(win);
-        lv->addWidget(stateDisp);
+        biasDisp = new StateDisplay(win);
+        biasDisp->setZoom(16);
+        lv->addWidget(biasDisp, 2);
 
+        stateDisp = new StateDisplay(win);
+        lv->addWidget(stateDisp, 5);
 
     win->setMenuBar(new QMenuBar(win));
 
@@ -110,4 +113,7 @@ void AnalyzeWindow::Private::updateStateDisp()
     int s = std::sqrt(layer->numIn());
     stateDisp->setStateSize(s, s, layer->numOut());
     stateDisp->setStates(layer->weights());
+
+    biasDisp->setStateSize(s, s, 1);
+    biasDisp->setStates(layer->biases());
 }

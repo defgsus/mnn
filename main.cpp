@@ -678,7 +678,7 @@ void trainRecon()
     set.load("/home/defgsus/prog/DATA/mnist/train-labels.idx1-ubyte",
              "/home/defgsus/prog/DATA/mnist/train-images.idx3-ubyte");
     set.normalize();
-    //set.scale(14, 14);
+    set.scale(14, 14);
 #else
     CifarSet set;
     set.load("/home/defgsus/prog/DATA/cifar-10/data_batch_1.bin");
@@ -702,11 +702,12 @@ void trainRecon()
 #endif
 
     // --- the layer to learn ---
-    auto layer = new MNN::Perceptron<Float, MNN::Activation::Linear>(
-                numIn, 100, 1, false);
+    auto layer = new MNN::PerceptronBias<Float, MNN::Activation::Tanh>(
+                numIn, 128);
     layer->setMomentum(.9);
+    layer->setLearnRateBias(1.);
     layer->brainwash(0.05);
-    //MNN::initPassThrough(net);
+    //MNN::initPassThrough(layer, 1.);
     Float learnRate = 0.001;
     Float randomProb = 0.5;
 
@@ -732,19 +733,22 @@ void trainRecon()
             image = &buffer1[0];
         }
 
-#if 0
-        noise_image = image;
-#else
-        // noisy version
-        buffer2.resize(layer->numIn());
-        auto img = image;
-        for (auto& f : buffer2)
+        if (randomProb <= 0.)
         {
-            f = (MNN::rnd(0., 1.) < randomProb) ? -0.13 : *img;
-            ++img;
+            noise_image = image;
         }
-        noise_image = &buffer2[0];
-#endif
+        else
+        {
+            // noisy version
+            buffer2.resize(layer->numIn());
+            auto img = image;
+            for (auto& f : buffer2)
+            {
+                f = (MNN::rnd(0., 1.) < randomProb) ? -0.13 : *img;
+                ++img;
+            }
+            noise_image = &buffer2[0];
+        }
 
         Float error = 100. * layer->reconstructionTraining(noise_image, image, learnRate);
         ++epoch;
@@ -915,14 +919,14 @@ int main()
 	srand(time(NULL));
 
     //TrainPosition t; t.exec(); return 0;
-    //TrainMnist t; t.exec(); return 0;
+    TrainMnist t; t.exec(); return 0;
 
     //maint<double>();
     //testRbm<float>();
     //trainRbmPyramid();
 
     //testCifar();
-    trainRecon<float>();
+    //trainRecon<float>();
     //trainAutoencoderStack<float>();
 
 	return 0;

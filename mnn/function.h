@@ -69,6 +69,27 @@ struct DenseMatrix
     }
 
     /** Forward propagate @p input into @p output
+        with bias for each output cell */
+    template <typename Float, class Activation>
+    static void fprop_bias(
+            const Float* input, Float* output, const Float* bias,
+            const Float* weight,
+            size_t numIn, size_t numOut)
+    {
+        for (size_t o = 0; o < numOut; ++o, ++output, ++bias)
+        {
+            Float sum = *bias;
+            const Float* inp = input;
+            for (auto i = 0; i < numIn; ++i, ++inp, ++weight)
+            {
+                sum += *inp * *weight;
+            }
+
+            *output = Activation::activation(sum);
+        }
+    }
+
+    /** Forward propagate @p input into @p output
         using transposed weight matrix. */
     template <typename Float, class Activation>
     static void fprop_transpose(
@@ -117,7 +138,7 @@ struct DenseMatrix
         for (size_t i = 0; i < numIn; ++i, ++input)
         {
             Float sum = 0;
-            Float* outp = output;
+            const Float* outp = output;
             for (size_t o = 0; o < numOut; ++o, ++outp)
             {
                 sum += *outp * weight[o * numIn + i];
@@ -185,6 +206,21 @@ struct DenseMatrix
             }
         }
     }
+
+    template <typename Float, class Activation>
+    static void gradient_descent_bias(
+            const Float* output, const Float* error,
+            Float* bias,
+            size_t numOut, Float learn_rate)
+    {
+        for (auto o = 0; o < numOut; ++o, ++output, ++error, ++bias)
+        {
+            Float de = Activation::derivative(*error, *output);
+
+            *bias += learn_rate * de;
+        }
+    }
+
 };
 
 

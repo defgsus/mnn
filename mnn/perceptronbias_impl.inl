@@ -102,8 +102,8 @@ MNN_TEMPLATE
 void MNN_PERCEPTRONBIAS::resize(size_t nrIn, size_t nrOut)
 {
     input_.resize(nrIn);
-    bias_.resize(nrIn);
     output_.resize(nrOut);
+    bias_.resize(nrOut);
     weight_.resize(nrIn * nrOut);
     prevDelta_.resize(nrIn * nrOut);
 }
@@ -116,7 +116,9 @@ void MNN_PERCEPTRONBIAS::grow(size_t nrIn, size_t nrOut, Float randomDev)
 
     // copy weights
     std::vector<Float>
-            weight(nrIn * nrOut);
+            weight(nrIn * nrOut),
+    // and biases
+            bias(nrOut);
     size_t o;
     for (o=0; o<output_.size(); ++o)
     {
@@ -129,6 +131,8 @@ void MNN_PERCEPTRONBIAS::grow(size_t nrIn, size_t nrOut, Float randomDev)
         for (; i<nrIn; ++i)
             weight[o * nrIn + i] = weight_[o * input_.size() + ri]
                                     + rndg(Float(0), randomDev);
+        // copy biases
+        bias[o] = bias_[o];
     }
     // run through additional outputs
     for (; o<nrOut; ++o)
@@ -143,9 +147,11 @@ void MNN_PERCEPTRONBIAS::grow(size_t nrIn, size_t nrOut, Float randomDev)
         for (; i<nrIn; ++i)
             weight[o * nrIn + i] = weight_[ro * input_.size() + ri]
                                     + rndg(Float(0), randomDev);
+        bias[o] = bias_[ro];
     }
-    // assign new weights
+    // assign new weights and biases
     weight_ = weight;
+    bias_ = bias;
     // resize other buffers
     input_.resize(nrIn); for (auto&f : input_) f = 0;
     output_.resize(nrOut); for (auto&f : output_) f = 0;
@@ -200,19 +206,11 @@ void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
     for (auto i = input_.begin(); i != input_.end(); ++i, ++input)
         *i = *input;
 
-    // propagate
-    auto w = &weight_[0];
-    for (auto o = output_.begin(); o != output_.end(); ++o)
-    {
-        Float sum = 0;
-        const Float* bias = &bias_[0];
-        for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++bias)
-        {
-            sum += (*i + *bias) * *w;
-        }
 
-        *o = ActFunc::activation(sum);
-    }
+    // propagate
+    DenseMatrix::fprop_bias<Float, ActFunc>(
+                &input_[0], &output_[0], &bias_[0], &weight_[0],
+                input_.size(), output_.size());
 
     // copy to caller
     std::copy(output_.begin(), output_.end(), output);
@@ -225,41 +223,115 @@ void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
 {
     global_learn_rate *= learnRate_;
 
-    const Float * e;
 
     // pass error through
     if (error_output)
-    for (size_t i = 0; i<input_.size(); ++i, ++error_output)
-    {
-        Float sum = 0;
-        e = error;
-        for (size_t o = 0; o < output_.size(); ++o, ++e)
-        {
-            sum += *e * weight_[o * input_.size() + i];
-        }
-        *error_output = sum;
-    }
+        DenseMatrix::bprop<Float>(
+                error_output, error, &weight_[0],
+                input_.size(), output_.size());
 
-    // backprob derivative
-    e = error;
-    Float* w = &weight_[0];
-    Float* pd = &prevDelta_[0];
-    Float* bias = &bias_[0];
-    for (auto o = output_.begin(); o != output_.end(); ++o, ++e)
-    {
-        Float de = ActFunc::derivative(*e, *o);
+    // gradient descent on weights
+    DenseMatrix::gradient_descent<Float, ActFunc>(
+                &input_[0], &output_[0], error,
+                &weight_[0], &prevDelta_[0],
+                input_.size(), output_.size(),
+                global_learn_rate * learnRate_,
+                momentum_);
 
-        *bias += learnRateBias_ * global_learn_rate * de;
+    // gradient descent on biases
+    DenseMatrix::gradient_descent_bias<Float, ActFunc>(
+                &output_[0], error, &bias_[0],
+                output_.size(),
+                global_learn_rate * learnRateBias_);
 
-        for (auto i = input_.begin(); i != input_.end(); ++i, ++w, ++pd, ++bias)
-        {
-            *pd = momentum_ * *pd
-                + global_learn_rate * de * *i;
-            *w += *pd;
-        }
-
-    }
 }
+
+
+MNN_TEMPLATE
+void MNN_PERCEPTRONBIAS::reconstruct(const Float* input, Float* reconstruction)
+{
+    // get code for input
+    DenseMatrix::fprop<Float, ActFunc>(
+                input, &output_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    // get reconstruction from code
+    DenseMatrix::fprop_transpose<Float, ActFunc>(
+                &output_[0], reconstruction, &weight_[0],
+                output_.size(), input_.size());
+}
+
+MNN_TEMPLATE
+Float MNN_PERCEPTRONBIAS::reconstructionTraining(
+            const Float *dec_input, const Float* true_input,
+            Float global_learn_rate)
+{
+    // copy to input
+    for (auto i = input_.begin(); i != input_.end(); ++i, ++dec_input)
+        *i = *dec_input;
+
+    // get reconstruction space
+    if (reconInput_.size() != input_.size())
+        reconInput_.resize(input_.size());
+    if (reconError_.size() != input_.size())
+        reconError_.resize(input_.size());
+    if (reconOutput_.size() != output_.size())
+        reconOutput_.resize(output_.size());
+
+    // get code for input
+    DenseMatrix::fprop_bias<Float, ActFunc>(
+                &input_[0], &output_[0], &bias_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    // get reconstruction from code
+    DenseMatrix::fprop_transpose<Float, ActFunc>(
+                &output_[0], &reconInput_[0], &weight_[0],
+                output_.size(), input_.size());
+
+    // get reconstruction error
+    Float err_sum = 0.;
+    auto inp = true_input,
+         err = &reconError_[0];
+    for (auto i : reconInput_)
+    {
+        Float e = *inp++ - i;
+        err_sum += std::abs(e);
+
+        *err++ = ActFunc::derivative(e, i);
+
+    }
+    err_sum /= input_.size();
+
+    // sum errors into code vector
+    DenseMatrix::fprop<Float, Activation::Linear>(
+                &reconError_[0], &reconOutput_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    // gradient descent using reconstruction error
+    DenseMatrix::gradient_descent_transpose<Float, Activation::Linear>(
+                &output_[0], &reconInput_[0], &reconError_[0],
+                &weight_[0], &prevDelta_[0],
+                output_.size(), input_.size(),
+                global_learn_rate * learnRate_,
+                momentum_);
+
+    // gradient descent using code error
+    DenseMatrix::gradient_descent<Float, Activation::Linear>(
+                &input_[0], &output_[0], &reconOutput_[0],
+                &weight_[0], &prevDelta_[0],
+                input_.size(), output_.size(),
+                global_learn_rate * learnRate_,
+                momentum_);
+
+    // gradient descent using code error
+    DenseMatrix::gradient_descent_bias<Float, Activation::Linear>(
+                &output_[0], &reconOutput_[0], &bias_[0],
+                output_.size(),
+                global_learn_rate * learnRateBias_);
+
+    return err_sum;
+}
+
 
 
 // ----------- info -----------------------

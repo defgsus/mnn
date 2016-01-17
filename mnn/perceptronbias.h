@@ -27,6 +27,7 @@ class PerceptronBias
         : public Layer<Float>
         , public GetMomentumInterface<Float>
         , public SetMomentumInterface<Float>
+        , public ReconstructionInterface<Float>
 {
     public:
 
@@ -51,6 +52,14 @@ class PerceptronBias
     Float learnRateBias() const { return learnRateBias_; }
     void setLearnRateBias(Float lr) { learnRateBias_ = lr; }
 
+    // -------- ReconstructionInterface ------
+
+    virtual void reconstruct(const Float* input, Float* reconstruction) override;
+    using ReconstructionInterface<Float>::reconstructionTraining;
+    virtual Float reconstructionTraining(
+            const Float *decoder_input, const Float* expected_input,
+            Float learn_rate = 1) override;
+
     // ----------- nn interface --------------
 
     virtual void resize(size_t numIn, size_t numOut) override;
@@ -63,6 +72,9 @@ class PerceptronBias
     virtual const Float* outputs() const override { return &output_[0]; }
     virtual const Float* weights() const override { return &weight_[0]; }
     virtual Float* weights() override { return &weight_[0]; }
+
+    virtual const Float* biases() const { return &bias_[0]; }
+    virtual Float* biases() { return &bias_[0]; }
 
     // ------- propagation -------------------
 
@@ -94,7 +106,10 @@ protected:
         bias_,
         output_,
         weight_,
-        prevDelta_;
+        prevDelta_,
+        reconInput_,
+        reconError_,
+        reconOutput_;
 
     Float learnRate_,
           learnRateBias_,

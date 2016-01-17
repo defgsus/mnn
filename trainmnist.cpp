@@ -9,7 +9,7 @@
 */
 
 // use cifar instead of mnist
-#define CIFAR
+//#define CIFAR
 
 #include <fstream>
 #include <iomanip>
@@ -213,13 +213,13 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);*/
 #endif
 
-#elif 0
+#elif 1
     // ----- classic dense matrix -----
 
-    typedef MNN::Activation::LinearRectified Act;
+    typedef MNN::Activation::Tanh Act;
     //typedef MNN::Activation::Logistic Act;
     {
-        auto l = new MNN::Perceptron<Float, Act>(
+        auto l = new MNN::PerceptronBias<Float, Act>(
                     trainSet.width() * trainSet.height(), 200);
         l->setMomentum(.9);
         //l->setDropOutMode(MNN::DO_TRAIN);
@@ -228,13 +228,14 @@ void TrainMnist::Private::createNet()
         net.add(l);
     }
     {
-        auto l = new MNN::Perceptron<Float, Act>(net.numOut(), 100);
+        auto l = new MNN::PerceptronBias<Float, Act>(net.numOut(), 100);
         l->setMomentum(.9);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
         //l->setLearnRateBias(.2);
         net.add(l);
     }
+    // output layer
     {
         auto l = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
         l->setMomentum(.9);
@@ -290,7 +291,7 @@ void TrainMnist::Private::createNet()
     learnRate = 0.001;
 
     net.brainwash(1.);
-#elif 1
+#elif 0
 
     // ----- convolution -------
 
