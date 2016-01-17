@@ -9,6 +9,7 @@
 #define MNN_PERCEPTRON_H_INCLUDED
 
 #include <cmath>
+#include <cassert>
 #include <vector>
 #include <iostream>
 

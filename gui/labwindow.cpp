@@ -27,7 +27,7 @@ struct LabWindow::Private
 {
     Private(LabWindow * win)
         : win       (win)
-        , net       (1,1)
+        , net       (0)
         , thread    (0)
     {
         //net = new MNN::Rbm<Float>(1, 1);
@@ -52,7 +52,7 @@ struct LabWindow::Private
 
     LabWindow * win;
     //MNN::Layer<Float> * net;
-    TrainThread::NetType net;
+    TrainThread::NetType* net;
     TrainThread* thread;
     QTimer* updateTimer;
 
@@ -126,7 +126,7 @@ void LabWindow::Private::createWidgets()
 void LabWindow::Private::updateInfoWin(const MNN::Layer<Float>* net)
 {
     if (net == 0)
-        net = &this->net;
+        net = this->net;
     if (!net)
     {
         infoWin->clear();
@@ -139,13 +139,16 @@ void LabWindow::Private::updateInfoWin(const MNN::Layer<Float>* net)
 
 void LabWindow::Private::updateStates()
 {
+    if (!net)
+        return;
+
     stateDisplay->setInstancesPerRow(20);
-    stateDisplay->setStateSize(28, 28, net.numOut());
-    stateDisplay->setStates(net.weights());
+    stateDisplay->setStateSize(28, 28, net->numOut());
+    stateDisplay->setStates(net->weights());
 
     stateDisplay2->setInstancesPerRow(20);
-    stateDisplay2->setStateSize(1, 1, net.numOut());
-    stateDisplay2->setStates(net.outputs());
+    stateDisplay2->setStateSize(1, 1, net->numOut());
+    stateDisplay2->setStates(net->outputs());
 }
 
 void LabWindow::onNetChanged()
@@ -184,5 +187,7 @@ void LabWindow::Private::saveLayer()
         return;
 
     auto net = thread->getNetCopy(0);
-    net.saveTextFile(fn.toStdString());
+    if (net)
+        net->saveTextFile(fn.toStdString());
+    delete net;
 }

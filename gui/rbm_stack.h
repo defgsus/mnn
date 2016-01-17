@@ -183,7 +183,7 @@ public:
         }
 
         // contrastive divergence training
-        Float err = rbm->cd(&sample->data[0], cdSteps_, learnRate_);
+        Float err = rbm->contrastiveDivergence(&sample->data[0], cdSteps_, learnRate_);
         ++epoch;
 
         // -- gather error stats --

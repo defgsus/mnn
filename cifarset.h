@@ -32,6 +32,9 @@ public:
           uint8_t label(uint32_t index) const { return p_labels_[index]; }
     const float*  image(uint32_t index) const {
                                     return &p_images_[index * width() * height()]; }
+    /** @note Returned pointer is valid until next call to this function. */
+    const float* getNoisyImage(
+            uint32_t index, float minRnd, float maxRnd);
 
     /** Returns the next random sample number with a different label */
     uint32_t nextRandomSample(uint32_t index) const;
@@ -53,7 +56,7 @@ public:
 private:
 
     uint32_t p_width_, p_height_;
-    std::vector<float> p_images_;
+    std::vector<float> p_images_, p_processed_;
     std::vector<uint8_t> p_labels_;
 };
 

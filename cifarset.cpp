@@ -113,3 +113,23 @@ void CifarSet::scale(uint32_t w, uint32_t h)
     p_height_ = h;
     p_images_ = scaled;
 }
+
+
+const float* CifarSet::getNoisyImage(
+    uint32_t index, float minRnd, float maxRnd)
+{
+    if (p_processed_.size() != width() * height())
+        p_processed_.resize(width() * height());
+
+    const float * img = image(index);
+    for (auto& p : p_processed_)
+    {
+        float pix = *img++;
+
+        pix += MNN::rnd(minRnd, maxRnd);
+
+        p = pix;
+    }
+
+    return &p_processed_[0];
+}

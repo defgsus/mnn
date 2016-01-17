@@ -11,12 +11,13 @@
 #include <QApplication>
 
 #include "gui/labwindow.h"
+#include "gui/analyzewindow.h"
 
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
-    auto mainwin = new LabWindow();
+    auto mainwin = new AnalyzeWindow();
     mainwin->show();
 
     return app.exec();

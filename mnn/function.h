@@ -163,6 +163,28 @@ struct DenseMatrix
             }
         }
     }
+
+
+    template <typename Float, class Activation>
+    static void gradient_descent_transpose(
+            const Float* input, const Float* output, const Float* error,
+            Float* weight, Float* previous_delta,
+            size_t numIn, size_t numOut, Float learn_rate, Float momentum)
+    {
+        for (auto o = 0; o < numOut; ++o, ++output, ++error)
+        {
+            Float de = Activation::derivative(*error, *output);
+
+            const Float* inp = input;
+            for (auto i = 0; i < numIn; ++i, ++inp)
+            {
+                size_t idx = i * numOut + o;
+                previous_delta[idx] = momentum * *previous_delta
+                                + learn_rate * de * *inp;
+                weight[idx] += previous_delta[idx];
+            }
+        }
+    }
 };
 
 

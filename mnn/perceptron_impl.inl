@@ -70,7 +70,7 @@ void MNN_PERCEPTRON::deserialize(std::istream& s)
 {
     std::string str;
     s >> str;
-    if (str != id())
+    if (str != id() && str != "RBM")
         MNN_EXCEPTION("Expected '" << id()
                       << "' in stream, found '" << str << "'");
     // version
@@ -323,6 +323,8 @@ Float MNN_PERCEPTRON::reconstructionTraining(
             const Float *dec_input, const Float* true_input,
             Float global_learn_rate)
 {
+    assert(!biasCell_ && "reconstruction currently not supported with bias cell");
+
     // copy to input
     if (!biasCell_)
         for (auto i = input_.begin(); i != input_.end(); ++i, ++dec_input)
@@ -345,7 +347,7 @@ Float MNN_PERCEPTRON::reconstructionTraining(
                 input_.size(), output_.size());
 
     // get reconstruction from code
-    DenseMatrix::fprop_transpose<Float, Activation::Linear>(
+    DenseMatrix::fprop_transpose<Float, ActFunc>(
                 &output_[0], &reconInput_[0], &weight_[0],
                 output_.size(), input_.size());
 
@@ -359,14 +361,50 @@ Float MNN_PERCEPTRON::reconstructionTraining(
         err_sum += std::abs(e);
 
         *err++ = e;//ActFunc::derivative(e, i);
+
     }
     err_sum /= input_.size();
 
+#if 1
+    // sum errors into code vector
+    DenseMatrix::fprop<Float, Activation::Linear>(
+                &reconError_[0], &reconOutput_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    // gradient descent using reconstruction error
+    DenseMatrix::gradient_descent_transpose<Float, ActFunc>(
+                &output_[0], &reconInput_[0], &reconError_[0],
+                &weight_[0], &prevDelta_[0],
+                output_.size(), input_.size(),
+                global_learn_rate * learnRate_,
+                momentum_);
+
+    // gradient descent using code error
+    DenseMatrix::gradient_descent<Float, ActFunc>(
+                &input_[0], &output_[0], &reconOutput_[0],
+                &weight_[0], &prevDelta_[0],
+                input_.size(), output_.size(),
+                global_learn_rate * learnRate_,
+                momentum_);
+
+#else
     // find optimal code
     // (sum errors into code vector)
     DenseMatrix::fprop<Float, Activation::Linear>(
                 &reconError_[0], &reconOutput_[0], &weight_[0],
                 input_.size(), output_.size());
+
+#if 0
+    Float density = 0.;
+    for (auto f : output_)
+        density += std::abs(f);
+    Float density_error = (3. - density);
+
+    // density penalty
+    for (size_t i = 0; i < output_.size(); ++i)
+        reconError_[i] += global_learn_rate * learnRate_
+                        * 0.001 * output_[i] * density_error;
+#endif
 
     // gradient descent using code error
     DenseMatrix::gradient_descent<Float, ActFunc>(
@@ -374,6 +412,7 @@ Float MNN_PERCEPTRON::reconstructionTraining(
                 input_.size(), output_.size(),
                 global_learn_rate * learnRate_,
                 momentum_);
+#endif
 
     return err_sum;
 }

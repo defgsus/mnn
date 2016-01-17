@@ -21,6 +21,10 @@
 
 namespace MNN {
 
+/** 2D Convolution.
+
+    @note multiple feature maps are NOT implemented currently
+*/
 template <typename Float, class ActFunc>
 class Convolution
         : public Layer<Float>
@@ -31,6 +35,10 @@ class Convolution
 
     Convolution(size_t inputWidth, size_t inputHeight,
                 size_t kernelWidth, size_t kernelHeight,
+                Float learnRate = 1);
+
+    Convolution(size_t inputWidth, size_t inputHeight, size_t inputMaps,
+                size_t kernelWidth, size_t kernelHeight, size_t outputMaps,
                 Float learnRate = 1);
 
     virtual ~Convolution();
@@ -52,6 +60,8 @@ class Convolution
 
     virtual void resize(size_t inputWidth, size_t inputHeight,
                         size_t kernelWidth, size_t kernelHeight);
+    virtual void resize(size_t inputWidth, size_t inputHeight, size_t inputMaps,
+                        size_t kernelWidth, size_t kernelHeight, size_t outputMaps);
 
     virtual void resize(size_t numIn, size_t numOut) override
         { assert(!"Can't use this resize function"); (void)numIn; (void)numOut; }
@@ -110,6 +120,7 @@ protected:
         prevDelta_;
 
     size_t
+        inputMaps_, outputMaps_,
         inputWidth_, inputHeight_,
         kernelWidth_, kernelHeight_,
         scanWidth_, scanHeight_;

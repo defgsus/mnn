@@ -87,14 +87,14 @@ void StateDisplay::Private::createWidgets()
         lv->addLayout(lh);
 
             spinZoom = new QSpinBox(p);
-            spinZoom->setRange(1, 100);
+            spinZoom->setRange(1, 10);
             spinZoom->setValue(1);
             connect(spinZoom, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
                     [=]() { updateImage(); });
             lh->addWidget(spinZoom);
 
             spinAmp = new QDoubleSpinBox(p);
-            spinAmp->setRange(0., 100.);
+            spinAmp->setRange(0., 1000000000.);
             spinAmp->setValue(1.);
             spinAmp->setSingleStep(0.1);
             connect(spinAmp, static_cast<void(QDoubleSpinBox::*)(double)>
@@ -198,13 +198,28 @@ void StateDisplay::Private::updateImage()
     int ix = 0, iy = 0;
     for (size_t i = 0; i < numInstances; ++i)
     {
-        for (int y = 0; y < size.height(); ++y)
-        for (int x = 0; x < size.width(); ++x, ++s)
+        if (0)
         {
-            auto si = std::min(255, std::abs(int(*s * 255 * amp)));
-            img.setPixel(ix * size.width() + x,
-                         iy * size.height() + y,
-                         *s > 0 ? qRgb(si, si, 0) : qRgb(0, 0, si));
+            for (int y = 0; y < size.height(); ++y)
+            for (int x = 0; x < size.width(); ++x, ++s)
+            {
+                int si = std::min(255, std::abs(int(*s * 255 * amp)));
+                int si0 = si * 0.9;
+                img.setPixel(ix * size.width() + x,
+                             iy * size.height() + y,
+                             *s > 0 ? qRgb(si, si, si0) : qRgb(si0, si0, si));
+            }
+        }
+        else
+        {
+            for (int y = 0; y < size.height(); ++y)
+            for (int x = 0; x < size.width(); ++x, ++s)
+            {
+                int si = std::min(255, std::abs(int((*s * amp + .5f) * 255)));
+                img.setPixel(ix * size.width() + x,
+                             iy * size.height() + y,
+                             qRgb(si, si, si));
+            }
         }
         ++ix;
         if (instancesPerRow > 0 && ix >= (int)instancesPerRow)

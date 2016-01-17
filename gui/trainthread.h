@@ -32,7 +32,7 @@ public:
 
     const StackType& rbmStack() const { return rbms_; }
     // locked access
-    NetType getNetCopy(size_t index) const;
+    NetType* getNetCopy(size_t index) const;
 
 public slots:
 

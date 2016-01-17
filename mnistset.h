@@ -40,6 +40,7 @@ public:
         @note Returned pointer is valid until next call to this function. */
     const float* getNoisyBackgroundImage(
             uint32_t index, float backgroundThreshold, float minRnd, float maxRnd);
+    /** @note Returned pointer is valid until next call to this function. */
     const float* getNoisyImage(
             uint32_t index, float minRnd, float maxRnd);
 

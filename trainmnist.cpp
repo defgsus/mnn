@@ -213,7 +213,7 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);*/
 #endif
 
-#elif 1
+#elif 0
     // ----- classic dense matrix -----
 
     typedef MNN::Activation::LinearRectified Act;
@@ -290,12 +290,12 @@ void TrainMnist::Private::createNet()
     learnRate = 0.001;
 
     net.brainwash(1.);
-#elif 0
+#elif 1
 
     // ----- convolution -------
 
     //typedef MNN::Activation::LinearRectified ConvAct;
-    typedef MNN::Activation::Linear ConvAct;
+    typedef MNN::Activation::LinearRectified ConvAct;
     //typedef MNN::Activation::Tanh ConvAct;
 
     auto l1 = new MNN::Convolution<Float, ConvAct>(

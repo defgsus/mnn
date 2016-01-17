@@ -34,6 +34,27 @@ struct Linear : public Base
 	static Float derivative(Float error, Float /*state*/) { return error; }
 };
 
+/** max(0, x) */
+struct LinearRectified : public Base
+{
+    static const char * static_name() { return "linear_rectified"; }
+    virtual const char * name() const { return static_name(); }
+
+    template <typename Float>
+    static Float activation(Float in)
+        { return std::max(Float(0), in); }
+
+#if 1
+    template <typename Float>
+    static Float derivative(Float error, Float /*state*/)
+        { return error; }
+#else
+    template <typename Float>
+    static Float derivative(Float error, Float state)
+        { return state <= Float(0) ? Float(0) : error; }
+#endif
+};
+
 
 /** tangens hyperbolicus activation */
 struct Tanh : public Base
@@ -162,25 +183,35 @@ struct Smooth2 : public Base
 };
 
 
-/** max(0, x) */
-struct LinearRectified : public Base
+/** x > 0 ? 1 : 0 */
+struct Threshold : public Base
 {
-    static const char * static_name() { return "linear_rectified"; }
+    static const char * static_name() { return "threshold"; }
     virtual const char * name() const { return static_name(); }
 
     template <typename Float>
     static Float activation(Float in)
-        { return std::max(Float(0), in); }
+        { return (in > Float(0) ? Float(1) : Float(0)); }
 
-#if 1
     template <typename Float>
     static Float derivative(Float error, Float /*state*/)
         { return error; }
-#else
+};
+
+
+/** x > 0 ? 1 : -1 */
+struct ThresholdSigned : public Base
+{
+    static const char * static_name() { return "threshold_signed"; }
+    virtual const char * name() const { return static_name(); }
+
     template <typename Float>
-    static Float derivative(Float error, Float state)
-        { return state <= Float(0) ? Float(0) : error; }
-#endif
+    static Float activation(Float in)
+        { return (in > Float(0) ? Float(1) : Float(-1)); }
+
+    template <typename Float>
+    static Float derivative(Float error, Float /*state*/)
+        { return error; }
 };
 
 

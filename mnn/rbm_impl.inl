@@ -69,7 +69,7 @@ void MNN_RBM::deserialize(std::istream& s)
 {
     std::string str;
     s >> str;
-    if (str != id())
+    if (str != id() && str != "Perceptron")
         MNN_EXCEPTION("Expected '" << id()
                       << "' in stream, found '" << str << "'");
     // version

@@ -28,14 +28,13 @@ TrainThread::~TrainThread()
     delete mutex_;
 }
 
-TrainThread::NetType TrainThread::getNetCopy(size_t index) const
+TrainThread::NetType* TrainThread::getNetCopy(size_t index) const
 {
     QReadLocker lock(mutex_);
     auto n = rbms_.rbm(index);
     if (n)
-        return *n;
-    NetType net(1,1);
-    return net;
+        return dynamic_cast<NetType*>(n->getCopy());
+    return 0;
 }
 
 

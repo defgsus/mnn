@@ -17,13 +17,17 @@ SOURCES += \
     trainposition.cpp \
     mnistset.cpp \
     trainmnist.cpp \
+    cifarset.cpp \
     mnn/stack_serial_impl.inl \
     mnn/perceptron_impl.inl \
     mnn/perceptronbias_impl.inl \
     mnn/rbm_impl.inl \
+    mnn/convolution_impl.inl \
+    mnn/stack_parallel_impl.inl \
     gui/labwindow.cpp \
     gui/statedisplay.cpp \
-    gui/trainthread.cpp
+    gui/trainthread.cpp \
+    gui/analyzewindow.cpp
 
 HEADERS += \
     trainposition.h \
@@ -38,10 +42,17 @@ HEADERS += \
     mnn/perceptronbias.h \
     mnn/rbm.h \
     mnn/exception.h \
+    printstate.h \
+    mnn/convolution.h \
+    mnn/stack_parallel.h \
+    generate_input.h \
+    mnn/interface.h \
+    cifarset.h \
     gui/labwindow.h \
     gui/statedisplay.h \
     gui/rbm_stack.h \
-    gui/trainthread.h
+    gui/trainthread.h \
+    gui/analyzewindow.h
 
 OTHER_FILES += \
     .gitignore \
