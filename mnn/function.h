@@ -10,8 +10,10 @@
 
 #include <cstddef>
 #include <cinttypes>
+#include <cmath>
 
 namespace MNN {
+
 
 namespace Private {
 
@@ -45,6 +47,19 @@ typename Private::IsFloat<Float>::Type rndg(Float mean, Float dev)
 }
 
 
+template <typename Float>
+void apply_softmax(Float * states, size_t num)
+{
+    Float sum = Float(0);
+    for (size_t i=0; i<num; ++i)
+    {
+        states[i] = std::exp(states[i]);
+        sum += states[i];
+    }
+    if (sum != Float(0))
+    for (size_t i=0; i<num; ++i)
+        states[i] /= sum;
+}
 
 
 struct DenseMatrix
@@ -327,6 +342,11 @@ struct DenseMatrixDropout
         }
     }
 };
+
+
+
+
+
 
 
 

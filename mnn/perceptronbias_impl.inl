@@ -16,6 +16,7 @@ MNN_PERCEPTRONBIAS::PerceptronBias(size_t nrIn, size_t nrOut, Float learnRate)
     : learnRate_	(learnRate)
     , learnRateBias_(.1)
     , momentum_     (.1)
+    , doSoftmax_    (false)
 {
     resize(nrIn, nrOut);
 }
@@ -42,6 +43,7 @@ PerceptronBias<Float, ActFunc>& MNN_PERCEPTRONBIAS::operator = (const Layer<Floa
     learnRate_ = net->learnRate_;
     learnRateBias_ = net->learnRateBias_;
     momentum_ = net->momentum_;
+    doSoftmax_ = net->doSoftmax_;
 
     return *this;
 }
@@ -54,9 +56,11 @@ void MNN_PERCEPTRONBIAS::serialize(std::ostream& s) const
 {
     s << id();
     // version
-    s << " " << 1;
+    s << " " << 2;
     // settings
     s << " " << learnRate_ << " " << momentum_;
+    // v2
+    s << doSoftmax_;
     // dimension
     s << " " << numIn() << " " << numOut();
     // bias
@@ -78,11 +82,13 @@ void MNN_PERCEPTRONBIAS::deserialize(std::istream& s)
     // version
     int ver;
     s >> ver;
-    if (ver > 1)
+    if (ver > 2)
         MNN_EXCEPTION("Wrong version in " << name());
 
     // settings
     s >> learnRate_ >> momentum_;
+    if (ver > 2)
+        s >> doSoftmax_;
     // dimension
     size_t numIn, numOut;
     s >> numIn >> numOut;
@@ -212,6 +218,9 @@ void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
                 &input_[0], &output_[0], &bias_[0], &weight_[0],
                 input_.size(), output_.size());
 
+    if (doSoftmax_)
+        apply_softmax(&output_[0], output_.size());
+
     // copy to caller
     std::copy(output_.begin(), output_.end(), output);
 }
@@ -219,31 +228,70 @@ void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
 
 MNN_TEMPLATE
 void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
-                           Float global_learn_rate)
+                           Float learn_rate)
 {
-    global_learn_rate *= learnRate_;
+    learn_rate *= learnRate_;
 
+    // this version first calculates error derivatives
+    // and passes these through to previous layers
+#if 1
+    // get error derivative
+    if (errorDer_.size() != output_.size())
+        errorDer_.resize(output_.size());
+    for (size_t i=0; i<output_.size(); ++i)
+        errorDer_[i] = ActFunc::derivative(error[i], output_[i]);
 
+    // pass error through
+    if (error_output)
+        DenseMatrix::bprop<Float>(
+                error_output, &errorDer_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    if (learn_rate > 0.)
+    {
+        // gradient descent on weights
+        DenseMatrix::gradient_descent<Float, Activation::Linear>(
+                    &input_[0], &output_[0], &errorDer_[0],
+                    &weight_[0], &prevDelta_[0],
+                    input_.size(), output_.size(),
+                    learn_rate,
+                    momentum_);
+
+        // gradient descent on biases
+        if (learnRateBias_ > 0.)
+        DenseMatrix::gradient_descent_bias<Float, Activation::Linear>(
+                    &output_[0], &errorDer_[0], &bias_[0],
+                    output_.size(),
+                    learn_rate * learnRateBias_);
+    }
+
+    // this version passes errors through to previous
+    // layers and uses derivatives for gradient descent
+#else
     // pass error through
     if (error_output)
         DenseMatrix::bprop<Float>(
                 error_output, error, &weight_[0],
                 input_.size(), output_.size());
 
-    // gradient descent on weights
-    DenseMatrix::gradient_descent<Float, ActFunc>(
-                &input_[0], &output_[0], error,
-                &weight_[0], &prevDelta_[0],
-                input_.size(), output_.size(),
-                global_learn_rate * learnRate_,
-                momentum_);
+    if (learn_rate > 0.)
+    {
+        // gradient descent on weights
+        DenseMatrix::gradient_descent<Float, ActFunc>(
+                    &input_[0], &output_[0], error,
+                    &weight_[0], &prevDelta_[0],
+                    input_.size(), output_.size(),
+                    learn_rate,
+                    momentum_);
 
-    // gradient descent on biases
-    DenseMatrix::gradient_descent_bias<Float, ActFunc>(
-                &output_[0], error, &bias_[0],
-                output_.size(),
-                global_learn_rate * learnRateBias_);
-
+        // gradient descent on biases
+        if (learnRateBias_ > 0.)
+        DenseMatrix::gradient_descent_bias<Float, ActFunc>(
+                    &output_[0], error, &bias_[0],
+                    output_.size(),
+                    learn_rate * learnRateBias_);
+    }
+#endif
 }
 
 
@@ -353,8 +401,10 @@ void MNN_PERCEPTRONBIAS::info(std::ostream &out, const std::string& pf) const
     out <<         pf << "name       : " << name()
         << "\n" << pf << "learnrate  : " << learnRate_ << " (bias: " << learnRateBias_ << ")"
         << "\n" << pf << "momentum   : " << momentum_
-        << "\n" << pf << "activation : " << ActFunc::static_name()
-        << "\n" << pf << "inputs     : " << numIn()
+        << "\n" << pf << "activation : " << ActFunc::static_name();
+    if (doSoftmax_)
+        out << " (softmax)";
+    out << "\n" << pf << "inputs     : " << numIn()
         << "\n" << pf << "outputs    : " << numOut()
         << "\n" << pf << "parameters : " << numParameters()
         << "\n";

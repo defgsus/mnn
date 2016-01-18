@@ -678,7 +678,7 @@ void trainRecon()
     set.load("/home/defgsus/prog/DATA/mnist/train-labels.idx1-ubyte",
              "/home/defgsus/prog/DATA/mnist/train-images.idx3-ubyte");
     set.normalize();
-    set.scale(14, 14);
+    //set.scale(14, 14);
 #else
     CifarSet set;
     set.load("/home/defgsus/prog/DATA/cifar-10/data_batch_1.bin");
@@ -692,18 +692,21 @@ void trainRecon()
 
     size_t numIn = set.width() * set.height();
 
+    std::string saveFilename;
+    saveFilename = "../autoencoder-mnist-noise-500v-500h.txt";
+
     // load previous layers
     MNN::Layer<Float> * net = 0;
-#if 0
-    net = new MNN::Perceptron<Float, MNN::Activation::Linear>(1, 1);
-    net->loadTextFile("../autoencoder-cifar-512h-1800ke.txt");
+#if 1
+    net = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(1, 1);
+    net->loadTextFile("../nets/tanh/autoencoder-mnist-noise-500h.txt");
 
     numIn = net->numOut();
 #endif
 
     // --- the layer to learn ---
     auto layer = new MNN::PerceptronBias<Float, MNN::Activation::Tanh>(
-                numIn, 128);
+                numIn, 500);
     layer->setMomentum(.9);
     layer->setLearnRateBias(1.);
     layer->brainwash(0.05);
@@ -783,9 +786,10 @@ void trainRecon()
             err_count = 0;
 
 #if 1
+            if (!saveFilename.empty())
             if (last_av_err >= 0 && av_err < last_av_err)
             {
-                layer->saveTextFile("../autoencoder-mnist-noise-256h.txt");
+                layer->saveTextFile(saveFilename);
             }
 #endif
             //printStateAscii(net->weights(), set.width(), set.height(), 8.f);

@@ -14,7 +14,7 @@
 #include <iostream>
 
 template <typename F>
-void printState(const F* state, size_t width, size_t height,
+void printState(const F* state, size_t width, size_t height = 1,
                 std::ostream& out = std::cout)
 {
     for (size_t j=0; j<height; ++j)

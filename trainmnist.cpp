@@ -8,6 +8,15 @@
     <p>created 12/21/2015</p>
 */
 
+/** @page results
+ *
+ *  MNIST:
+ *      784-500-500-10 PerceptronBias(TANH), last layer LINEAR
+ *                  ~2.3% (1.2% on training set) after ~11,000,000 steps
+ *
+ *
+ **/
+
 // use cifar instead of mnist
 //#define CIFAR
 
@@ -64,7 +73,8 @@ struct TrainMnist::Private
     std::vector<size_t> errorsPerClass;
     Float learnRate,
         error, error_min, error_max, error_sum;
-    size_t numBatch, epoch, error_count;
+    size_t numBatch, epoch, error_count;    
+    int64_t saved_error_count;
     bool doTrainCD;
     MNN::ContrastiveDivergenceInterface<Float>* cdnet;
 };
@@ -107,6 +117,11 @@ void TrainMnist::Private::loadSet()
         testSet.load("/home/defgsus/prog/DATA/mnist/t10k-labels.idx1-ubyte",
                       "/home/defgsus/prog/DATA/mnist/t10k-images.idx3-ubyte");
         testSet.normalize();
+        /*
+        for (int i=0; i<10; ++i)
+            printStateAscii(trainSet.getTransformedImage(10, 4), trainSet.width(), trainSet.height());
+        abort();
+        */
 #endif
         std::cout << "loaded set: "
                   << trainSet.width() << "x" << trainSet.height()
@@ -124,18 +139,25 @@ void TrainMnist::Private::loadSet()
 const TrainMnist::Private::Float*
 TrainMnist::Private::getImage(DataSet &set, uint32_t num) const
 {
-#if 1
+#if 0
     return set.image(num);
-#else
+#elif 0
     const Float *image = set.getNoisyBackgroundImage(
                 num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
     //printStateAscii(image, trainSet.width(), trainSet.height());
+    return image;
+#elif 1
+    return set.getTransformedImage(num, MNN::rnd(0.f, 4.f));
+#else
+    const Float *image = set.getNoisyImage(
+                num, MNN::rnd(-0.3, 0.), MNN::rnd(0., .3));
     return image;
 #endif
 }
 
 void TrainMnist::Private::saveAllLayers(const std::string& postfix)
 {
+    std::cout << "saving '" << postfix << "'" << std::endl;
     net.saveTextFile(postfix + "_stack.txt");
     for (size_t i=0; i<net.numLayer(); ++i)
     {
@@ -156,6 +178,7 @@ void TrainMnist::Private::createNet()
     bufErr.resize(numOut);
     errorsPerClass.resize(numOut);
 
+    saved_error_count = -1;
     numBatch = 1;
     doTrainCD = false;
 
@@ -220,13 +243,14 @@ void TrainMnist::Private::createNet()
     //typedef MNN::Activation::Logistic Act;
     {
         auto l = new MNN::PerceptronBias<Float, Act>(
-                    trainSet.width() * trainSet.height(), 200);
+                    trainSet.width() * trainSet.height(), 100);
         l->setMomentum(.9);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.2);
         //l->setLearnRateBias(.2);
         net.add(l);
     }
+    if (1)
     {
         auto l = new MNN::PerceptronBias<Float, Act>(net.numOut(), 100);
         l->setMomentum(.9);
@@ -237,8 +261,9 @@ void TrainMnist::Private::createNet()
     }
     // output layer
     {
-        auto l = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+        auto l = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
         l->setMomentum(.9);
+        l->setSoftmax(true);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
         //l->setLearnRateBias(.2);
@@ -247,6 +272,56 @@ void TrainMnist::Private::createNet()
 
     net.brainwash();
     learnRate = 0.001;
+    numBatch = 1;
+
+#elif 0
+
+    // ----- classic dense matrix -----
+
+    typedef MNN::Activation::Tanh Act;
+    //typedef MNN::Activation::Logistic Act;
+    {
+        auto l = new MNN::PerceptronBias<Float, Act>(
+                    trainSet.width() * trainSet.height(), 500);
+        l->loadTextFile("../nets/tanh/autoencoder-mnist-noise-500h.txt");
+        l->setMomentum(.9);
+        l->setLearnRate(0.0);
+        l->setLearnRateBias(0.0);
+        //l->setDropOutMode(MNN::DO_TRAIN);
+        //l->setDropOut(.2);
+        net.add(l);
+    }
+    {
+        auto l = new MNN::PerceptronBias<Float, Act>(net.numOut(), 500);
+        l->loadTextFile("../nets/tanh/autoencoder-mnist-noise-l2-500v-500h.txt");
+        l->setMomentum(.9);
+        l->setLearnRate(0.0);
+        l->setLearnRateBias(0.0);
+        //l->setDropOutMode(MNN::DO_TRAIN);
+        //l->setDropOut(.5);
+        net.add(l);
+    }
+    // output layer
+    {
+        auto l = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+        l->brainwash();
+        l->setMomentum(.9);
+        l->setLearnRateBias(.1);
+        //l->setDropOutMode(MNN::DO_TRAIN);
+        //l->setDropOut(.5);
+        l->setSoftmax(true);
+        net.add(l);
+    }
+
+    net.loadTextFile("../mnist_e300_stack.txt");
+    for (size_t i=0; i<net.numLayer()-1; ++i)
+    {
+        MNN::setLearnRate(net.layer(i), Float(0.7));
+        MNN::setLearnRateBias(net.layer(i), Float(0.05));
+    }
+    saved_error_count = 247;
+    //net.brainwash();
+    learnRate = 0.00001;
     numBatch = 1;
 
 #elif 0
@@ -300,11 +375,11 @@ void TrainMnist::Private::createNet()
     //typedef MNN::Activation::Tanh ConvAct;
 
     auto l1 = new MNN::Convolution<Float, ConvAct>(
-                    trainSet.width(), trainSet.height(), 10, 10);
+                    trainSet.width(), trainSet.height(), 25, 25, 0.01);
     l1->setMomentum(.9);
     net.add(l1);
     auto lprev = l1;
-
+    if (0)
     {
         auto l = lprev = new MNN::Convolution<Float, ConvAct>(
                             lprev->scanWidth(), lprev->scanHeight(),
@@ -312,18 +387,20 @@ void TrainMnist::Private::createNet()
         l->setMomentum(.9);
         net.add(l);
     }
+    if (0)
     {
-        auto l = new MNN::Perceptron<Float, ConvAct>(
+        auto l = new MNN::PerceptronBias<Float, ConvAct>(
                             lprev->scanWidth() * lprev->scanHeight(),
                             200);
         l->setMomentum(.9);
         net.add(l);
     }
-    auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    auto lout = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
+    lout->setSoftmax(true);
     net.add(lout);
 
-    learnRate = 0.00006;
+    learnRate = 0.0006;
 
     net.brainwash(0.5);
 
@@ -335,10 +412,10 @@ void TrainMnist::Private::createNet()
 
     auto stack = new MNN::StackParallel<Float>;
 
-    for (int i = 0; i<3; ++i)
+    for (int i = 0; i<16; ++i)
     {
-        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width(), trainSet.height(),
-                                                       5, 5);
+        auto l1 = new MNN::Convolution<Float, ConvAct>(trainSet.width()/4, trainSet.height()/4,
+                                                       4, 4);
         l1->setMomentum(.9);
         stack->add(l1);
     }
@@ -356,6 +433,8 @@ void TrainMnist::Private::createNet()
         stack->add(l1);
     }
     net.add(stack);
+    std::cout << net.numIn() << std::endl;
+
 
     // -- output layers --
     if (0)
@@ -364,8 +443,9 @@ void TrainMnist::Private::createNet()
         lout->setMomentum(.9);
         net.add(lout);
     }
-    auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    auto lout = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
+    lout->setSoftmax(true);
     net.add(lout);
 
     learnRate = 0.00001;
@@ -404,11 +484,11 @@ void TrainMnist::Private::train()
 
         const int num = 5000;
 
-#if 1
+#if 0
         // decrease learnrate
         if (epoch % 2000 == 0)
         {
-            if (learnRate > 0.00005)
+            if (learnRate > 0.0002)
             {
                 learnRate *= 0.9;
                 //std::cout << "learnrate " << learnRate << std::endl;
@@ -431,26 +511,35 @@ void TrainMnist::Private::train()
         if (epoch % 60000 == 0)
         {
             testPerformance();
-#if 0
-            // save when error < x
-            if (error_count < 100)
-                saveAllLayers("../mnist_e100");
-            else if (error_count < 200)
-                saveAllLayers("../mnist_e200");
-            else if (error_count < 300)
-                saveAllLayers("../mnist_e300");
-            else if (error_count < 400)
-                saveAllLayers("../mnist_e400");
-            else if (error_count < 500)
-                saveAllLayers("../mnist_e500");
-            else if (error_count < 1000)
-                saveAllLayers("../mnist_e1000");
+#if 1
+            if (saved_error_count < 0 || error_count < size_t(saved_error_count))
+            {
+                // save when error < x
+                if (error_count < 100)
+                    saveAllLayers("../mnist_e100");
+                else if (error_count < 200)
+                    saveAllLayers("../mnist_e200");
+                else if (error_count < 300)
+                    saveAllLayers("../mnist_e300");
+                else if (error_count < 400)
+                    saveAllLayers("../mnist_e400");
+                else if (error_count < 500)
+                    saveAllLayers("../mnist_e500");
+                else if (error_count < 600)
+                    saveAllLayers("../mnist_e600");
+                else if (error_count < 1000)
+                    saveAllLayers("../mnist_e1000");
+
+                saved_error_count = error_count;
+            }
 #endif
             clearErrorCount();
         }
         else
         if (epoch % num == 0)
         {
+            //printState(net.outputs(), 10, 1);
+
             Float error_percent = Float(error_count) / num * 100;
 
             std::cout << "epoch " << std::setw(7) << epoch
@@ -464,7 +553,7 @@ void TrainMnist::Private::train()
                       << std::endl;
 
             clearErrorCount();
-#if 1
+#if 0
             if (epoch >= 120000
              && error_percent < 18
               && !doTrainCD)
@@ -497,7 +586,7 @@ void TrainMnist::Private::prepareExpectedOutput(std::vector<Float>& v, uint8_t l
 {
     for (auto& f : v)
         f = 0.0;
-    v[label] = .9;
+    v[label] = 1.;
 }
 
 

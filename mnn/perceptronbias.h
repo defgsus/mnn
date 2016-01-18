@@ -25,8 +25,14 @@ namespace MNN {
 template <typename Float, class ActFunc>
 class PerceptronBias
         : public Layer<Float>
+        , public GetLearnRateInterface<Float>
+        , public SetLearnRateInterface<Float>
+        , public GetLearnRateBiasInterface<Float>
+        , public SetLearnRateBiasInterface<Float>
         , public GetMomentumInterface<Float>
         , public SetMomentumInterface<Float>
+        , public GetSoftmaxInterface
+        , public SetSoftmaxInterface
         , public ReconstructionInterface<Float>
 {
     public:
@@ -42,15 +48,25 @@ class PerceptronBias
 
     virtual PerceptronBias<Float, ActFunc>& operator = (const Layer<Float>&) override;
 
+    // --------- LearnRateInterface ----------
+
+    virtual Float learnRate() const override { return learnRate_; }
+    virtual void setLearnRate(Float lr) override { learnRate_ = lr; }
+
+    // --------- LearnRateBiasInterface ------
+
+    virtual Float learnRateBias() const override { return learnRateBias_; }
+    virtual void setLearnRateBias(Float lr) override { learnRateBias_ = lr; }
+
     // --------- MomentumInterface -----------
 
     virtual Float momentum() const override { return momentum_; }
     virtual void setMomentum(Float m) override { momentum_ = m; }
 
-    // ---
+    // --------- SoftmaxInterface ------------
 
-    Float learnRateBias() const { return learnRateBias_; }
-    void setLearnRateBias(Float lr) { learnRateBias_ = lr; }
+    virtual void setSoftmax(bool enable) override { doSoftmax_ = enable; }
+    virtual bool isSoftmax() const override { return doSoftmax_; }
 
     // -------- ReconstructionInterface ------
 
@@ -107,6 +123,7 @@ protected:
         output_,
         weight_,
         prevDelta_,
+        errorDer_,
         reconInput_,
         reconError_,
         reconOutput_;
@@ -114,6 +131,8 @@ protected:
     Float learnRate_,
           learnRateBias_,
           momentum_;
+
+    bool doSoftmax_;
 };
 
 #include "perceptronbias_impl.inl"

@@ -14,6 +14,7 @@
 namespace MNN {
 
 
+
 // --------------- dropout --------------------
 
 enum DropOutMode
@@ -56,6 +57,67 @@ public:
     virtual Float dropOut() const = 0;
 };
 
+
+
+// ---------------- learnrate ----------------
+
+/** Interface for setting learning rate */
+template <typename Float>
+class SetLearnRateInterface
+{
+public:
+
+    virtual void setLearnRate(Float lr) = 0;
+};
+
+/** Interface for getting learning rate*/
+template <typename Float>
+class GetLearnRateInterface
+{
+public:
+
+    virtual Float learnRate() const = 0;
+};
+
+
+// ---------------- bias learnrate ----------------
+
+/** Interface for setting bias learning rate */
+template <typename Float>
+class SetLearnRateBiasInterface
+{
+public:
+
+    virtual void setLearnRateBias(Float lr) = 0;
+};
+
+/** Interface for getting bias learning rate*/
+template <typename Float>
+class GetLearnRateBiasInterface
+{
+public:
+
+    virtual Float learnRateBias() const = 0;
+};
+
+
+// ---------------- softmax ----------------
+
+/** Interface for setting softmax mode */
+class SetSoftmaxInterface
+{
+public:
+
+    virtual void setSoftmax(bool enable) = 0;
+};
+
+/** Interface for getting softmax mode */
+class GetSoftmaxInterface
+{
+public:
+
+    virtual bool isSoftmax() const = 0;
+};
 
 
 // ---------------- momentum ----------------
@@ -119,6 +181,38 @@ public:
             const Float* encoder_input, const Float* expected_input,
             Float learn_rate = 1) = 0;
 };
+
+
+
+
+
+// ------------------ non-member functions ---------------------
+
+template <typename Float>
+class Layer;
+
+template <typename Float>
+void setLearnRate(Layer<Float>* l, Float v)
+{
+    if (auto d = dynamic_cast<SetLearnRateInterface<Float>*>(l))
+        d->setLearnRate(v);
+}
+
+template <typename Float>
+void setLearnRateBias(Layer<Float>* l, Float v)
+{
+    if (auto d = dynamic_cast<SetLearnRateBiasInterface<Float>*>(l))
+        d->setLearnRateBias(v);
+}
+
+template <typename Float>
+void setMomentum(Layer<Float>* l, Float v)
+{
+    if (auto d = dynamic_cast<SetMomentumInterface<Float>*>(l))
+        d->setMomentum(v);
+}
+
+
 
 } // namespace MNN
 

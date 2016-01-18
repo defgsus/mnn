@@ -164,6 +164,55 @@ const float* MnistSet::getNoisyImage(
     return &p_processed_[0];
 }
 
+const float* MnistSet::getTransformedImage(
+    uint32_t index, float rndMorph)
+{
+    if (p_processed_.size() != width() * height())
+        p_processed_.resize(width() * height());
+
+    const float * img = image(index);
+
+    float freqx = MNN::rnd(0., 10.),
+          freqy = MNN::rnd(0., 10.),
+          ampx = MNN::rnd(-1., 1.) * rndMorph,
+          ampy = MNN::rnd(-1., 1.) * rndMorph,
+          backg = img[0];
+
+    for (uint32_t py=0; py<height(); ++py)
+    {
+        float ty = float(py) / height() * freqy;
+        for (uint32_t px=0; px<width(); ++px)
+        {
+            float tx = float(px) / width() * freqx,
+                  x = (px + ampx * std::sin(ty)),
+                  y = (py + ampy * std::cos(tx)),
+                  ix = std::floor(x),
+                  iy = std::floor(y),
+                  fx = x - ix,
+                  fy = y - iy;
+            if (ix < 0. || ix >= width() || iy < 0. || iy >= height())
+                p_processed_[py * height() + px] = backg;
+            else
+            {
+                float v = img[int(iy * height() + ix)];
+                if (ix + 1 < width())
+                    v += fx * (img[int(iy * height() + ix + 1)] - v);
+                if (iy + 1 < height())
+                {
+                    float v1 = img[int((iy+1) * height() + ix)];
+                    if (ix + 1 < width())
+                        v1 += fx * (img[int((iy+1) * height() + ix + 1)] - v1);
+                    v += fy * (v1 - v);
+                }
+                p_processed_[py * height() + px] = v;
+            }
+        }
+    }
+
+    return &p_processed_[0];
+}
+
+
 uint32_t MnistSet::nextRandomSample(uint32_t index) const
 {
     auto lab = label(index);

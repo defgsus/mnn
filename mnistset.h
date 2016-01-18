@@ -44,6 +44,8 @@ public:
     const float* getNoisyImage(
             uint32_t index, float minRnd, float maxRnd);
 
+    const float* getTransformedImage(uint32_t index, float maxMorphPixels);
+
     // ------------- io -------------
 
     /** Throws MNN::Exception on any error */
