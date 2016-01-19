@@ -174,6 +174,8 @@ const float* MnistSet::getTransformedImage(
 
     float freqx = MNN::rnd(0., 10.),
           freqy = MNN::rnd(0., 10.),
+          phasex = MNN::rnd(0., 6.28),
+          phasey = MNN::rnd(0., 6.28),
           ampx = MNN::rnd(-1., 1.) * rndMorph,
           ampy = MNN::rnd(-1., 1.) * rndMorph,
           backg = img[0];
@@ -184,8 +186,8 @@ const float* MnistSet::getTransformedImage(
         for (uint32_t px=0; px<width(); ++px)
         {
             float tx = float(px) / width() * freqx,
-                  x = (px + ampx * std::sin(ty)),
-                  y = (py + ampy * std::cos(tx)),
+                  x = (px + ampx * std::sin(ty + phasey)),
+                  y = (py + ampy * std::cos(tx + phasex)),
                   ix = std::floor(x),
                   iy = std::floor(y),
                   fx = x - ix,

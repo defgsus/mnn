@@ -42,5 +42,24 @@ void printStateAscii(const F* state, size_t width, size_t height,
     }
 }
 
+template <typename F>
+void printStateAscii(const F* state, size_t width, size_t height, size_t instances,
+                     F amplitude = 1, std::ostream& out = std::cout)
+{
+    for (size_t j=0; j<height; ++j)
+    {
+        for (size_t ins=0; ins<instances; ++ins)
+        {
+            for (size_t i=0; i<width; ++i)
+            {
+                F s = state[(j * width + i) + ins * width * height] * amplitude;
+                out << ( s > .7 ? '#' : s > .35 ? '*' : s > .15 ? ':' : '.' );
+            }
+            out << " ";
+        }
+        out << std::endl;
+    }
+}
+
 #endif // PRINTSTATE_H
 

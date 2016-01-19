@@ -236,7 +236,7 @@ void TrainMnist::Private::createNet()
     net.insert(1, ln);*/
 #endif
 
-#elif 1
+#elif 0
     // ----- classic dense matrix -----
 
     typedef MNN::Activation::Tanh Act;
@@ -366,43 +366,57 @@ void TrainMnist::Private::createNet()
     learnRate = 0.001;
 
     net.brainwash(1.);
-#elif 0
+#elif 1
 
     // ----- convolution -------
 
+    //typedef MNN::Activation::Linear ConvAct;
     //typedef MNN::Activation::LinearRectified ConvAct;
-    typedef MNN::Activation::LinearRectified ConvAct;
-    //typedef MNN::Activation::Tanh ConvAct;
+    typedef MNN::Activation::Tanh ConvAct;
 
     auto l1 = new MNN::Convolution<Float, ConvAct>(
-                    trainSet.width(), trainSet.height(), 25, 25, 0.01);
+                    trainSet.width(), trainSet.height(), 1,
+                    2, 2,
+                    5, 5,
+                    14);
     l1->setMomentum(.9);
     net.add(l1);
-    auto lprev = l1;
-    if (0)
+    MNN::ConvolutionInterface* lprev = l1;
+    if (1)
     {
-        auto l = lprev = new MNN::Convolution<Float, ConvAct>(
-                            lprev->scanWidth(), lprev->scanHeight(),
-                            9, 9);
+        auto l = new MNN::Convolution<Float, ConvAct>(
+                            lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
+                            2, 2,
+                            3, 3, 2);
         l->setMomentum(.9);
         net.add(l);
+        lprev = l;
     }
     if (0)
     {
-        auto l = new MNN::PerceptronBias<Float, ConvAct>(
-                            lprev->scanWidth() * lprev->scanHeight(),
-                            200);
+        auto l = new MNN::Convolution<Float, ConvAct>(
+                            lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
+                            1, 1,
+                            3, 3, 2);
+        l->setMomentum(.9);
+        net.add(l);
+        lprev = l;
+    }
+    if (0)
+    {
+        auto l = new MNN::PerceptronBias<Float, ConvAct>(net.numOut(), 200);
         l->setMomentum(.9);
         net.add(l);
     }
-    auto lout = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    auto lout = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(
+                net.numOut(), numOut, 2.);
     lout->setMomentum(.9);
     lout->setSoftmax(true);
     net.add(lout);
 
-    learnRate = 0.0006;
+    learnRate = 0.0001;
 
-    net.brainwash(0.5);
+    net.brainwash(10.);
 
 #else
     // ---------- parallel convolution ------------
@@ -539,6 +553,16 @@ void TrainMnist::Private::train()
         if (epoch % num == 0)
         {
             //printState(net.outputs(), 10, 1);
+            for (size_t i=0; i<net.numLayer(); ++i)
+            if (auto conv = dynamic_cast<MNN::ConvolutionInterface*>(net.layer(i)))
+            {
+                std::cout << std::endl;
+                printStateAscii(net.layer(i)->weights(),
+                                conv->kernelWidth(), conv->kernelHeight(), conv->numOutputMaps(),
+                                Float(20.));
+                printStateAscii(net.layer(i)->outputs(),
+                                conv->scanWidth(), conv->scanHeight(), conv->numOutputMaps());
+            }
 
             Float error_percent = Float(error_count) / num * 100;
 
@@ -710,6 +734,8 @@ void TrainMnist::Private::testPerformance()
 #endif
     }
 
+    Float error_percent = Float(error_count) / set.numSamples() * Float(100);
+
     // output performance
     std::cout << "validation,    "
               << "error " << error_min
@@ -717,7 +743,8 @@ void TrainMnist::Private::testPerformance()
               << ", pc";
     for (size_t j=0; j<errorsPerClass.size(); ++j)
         std::cout << " " << std::setw(3) << errorsPerClass[j];
-    std::cout << ", E " << error_count
+    std::cout << ", % " << error_percent
+              << ", E " << error_count
               << std::endl;
 
     delete net;

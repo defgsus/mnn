@@ -23,13 +23,24 @@ namespace MNN {
 
 /** 2D Convolution.
 
-    @note multiple feature maps are NOT implemented currently
+    Convolves a 2D input with a trainable kernel.
+    Supports multiple "feature maps" which are parallel convolving kernels.
+
+    The size of the output of this layer is scanWidth() * scanHeight() * numOutputMaps(),
+    scanWidth() beeing equal to (inputWidth() - kernelWidth()) / strideX() + 1.
+
+    The number of output maps is equal to numInputMaps() * numParallelMaps(),
+    meaning each input map (from a previous convolution stage)
+    is convolved times numParallelMaps().
+
+    There are numOutputMaps() kernels of size kernelWidth() * kernelHeight().
 */
 template <typename Float, class ActFunc>
 class Convolution
         : public Layer<Float>
         , public GetMomentumInterface<Float>
         , public SetMomentumInterface<Float>
+        , public ConvolutionInterface
 {
     public:
 
@@ -37,8 +48,13 @@ class Convolution
                 size_t kernelWidth, size_t kernelHeight,
                 Float learnRate = 1);
 
-    Convolution(size_t inputWidth, size_t inputHeight, size_t inputMaps,
-                size_t kernelWidth, size_t kernelHeight, size_t outputMaps,
+    Convolution(size_t inputWidth, size_t inputHeight, size_t numInputMaps,
+                size_t kernelWidth, size_t kernelHeight, size_t numParallelMaps,
+                Float learnRate = 1);
+
+    Convolution(size_t inputWidth, size_t inputHeight, size_t numInputMaps,
+                size_t strideX, size_t strideY,
+                size_t kernelWidth, size_t kernelHeight, size_t numParallelMaps,
                 Float learnRate = 1);
 
     virtual ~Convolution();
@@ -58,35 +74,44 @@ class Convolution
 
     // ----------- nn interface --------------
 
-    virtual void resize(size_t inputWidth, size_t inputHeight,
-                        size_t kernelWidth, size_t kernelHeight);
-    virtual void resize(size_t inputWidth, size_t inputHeight, size_t inputMaps,
-                        size_t kernelWidth, size_t kernelHeight, size_t outputMaps);
-
     virtual void resize(size_t numIn, size_t numOut) override
         { assert(!"Can't use this resize function"); (void)numIn; (void)numOut; }
     virtual void grow(size_t nrIn, size_t nrOut, Float randomDev) override
         { assert(!"Can't use the grow function"); (void)nrIn; (void)nrOut; (void)randomDev; }
     virtual void brainwash(Float variance = 1.) override;
 
-    virtual size_t inputWidth() const { return inputWidth_; }
-    virtual size_t inputHeight() const { return inputHeight_; }
-    virtual size_t kernelWidth() const { return kernelWidth_; }
-    virtual size_t kernelHeight() const { return kernelHeight_; }
-    virtual size_t scanWidth() const { return scanWidth_; }
-    virtual size_t scanHeight() const { return scanHeight_; }
+    // -------- ConvolutionInterface ----------
 
-    virtual size_t numIn() const override;
-    virtual size_t numOut() const override;
+    using ConvolutionInterface::resize;
+    virtual void resize(size_t inputWidth, size_t inputHeight, size_t numInputMaps,
+                        size_t strideX, size_t strideY,
+                        size_t kernelWidth, size_t kernelHeight, size_t numParallelMaps)
+                                                                                override;
+
+    virtual size_t inputWidth() const override { return inputWidth_; }
+    virtual size_t inputHeight() const override { return inputHeight_; }
+    virtual size_t kernelWidth() const override { return kernelWidth_; }
+    virtual size_t kernelHeight() const override { return kernelHeight_; }
+    virtual size_t scanWidth() const override { return scanWidth_; }
+    virtual size_t scanHeight() const override { return scanHeight_; }
+    virtual size_t strideX() const override { return strideX_; }
+    virtual size_t strideY() const override { return strideY_; }
+    virtual size_t numInputMaps() const override { return inputMaps_; }
+    virtual size_t numParallelMaps() const override { return parallelMaps_; }
+    virtual size_t numOutputMaps() const override { return inputMaps_ * parallelMaps_; }
+
+
+    virtual size_t numIn() const override { return input_.size(); }
+    virtual size_t numOut() const override { return output_.size(); }
     virtual const Float* inputs() const override { return &input_[0]; }
     virtual const Float* outputs() const override { return &output_[0]; }
     virtual const Float* weights() const override { return &weight_[0]; }
     virtual Float* weights() override { return &weight_[0]; }
 
     virtual Float weight(size_t input, size_t output) const override
-        { return weights()[output * input_.size() + input]; }
+        { assert(!"Can't use this function in Convolution"); (void)input; (void)output; }
     virtual void setWeight(size_t input, size_t output, Float w) override
-        { weights()[output * input_.size() + input] = w; }
+        { assert(!"Can't use this function in Convolution"); (void)input; (void)output; (void)w; }
 
     // ------- propagation -------------------
 
@@ -117,13 +142,16 @@ protected:
         input_,
         output_,
         weight_,
-        prevDelta_;
+        outputErr_,
+        prevDelta_,
+        weightBuffer_;
 
     size_t
-        inputMaps_, outputMaps_,
+        inputMaps_, parallelMaps_,
         inputWidth_, inputHeight_,
         kernelWidth_, kernelHeight_,
-        scanWidth_, scanHeight_;
+        scanWidth_, scanHeight_,
+        strideX_, strideY_;
     Float
         learnRate_,
         momentum_;

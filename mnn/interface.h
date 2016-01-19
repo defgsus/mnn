@@ -11,6 +11,8 @@
 #ifndef MNN_INTERFACE_H
 #define MNN_INTERFACE_H
 
+#include <cstddef> // for size_t
+
 namespace MNN {
 
 
@@ -183,6 +185,37 @@ public:
 };
 
 
+
+// ------------------ convolution ------------------------------
+
+class ConvolutionInterface
+{
+public:
+    virtual size_t inputWidth() const = 0;
+    virtual size_t inputHeight() const = 0;
+    virtual size_t kernelWidth() const = 0;
+    virtual size_t kernelHeight() const = 0;
+    virtual size_t scanWidth() const = 0;
+    virtual size_t scanHeight() const = 0;
+    virtual size_t strideX() const = 0;
+    virtual size_t strideY() const = 0;
+    virtual size_t numParallelMaps() const = 0;
+    virtual size_t numInputMaps() const = 0;
+    virtual size_t numOutputMaps() const = 0;
+
+    virtual void resize(size_t inputWidth, size_t inputHeight,
+                        size_t kernelWidth, size_t kernelHeight)
+        { resize(inputWidth, inputHeight, 1, kernelWidth, kernelHeight, 1); }
+
+    virtual void resize(size_t inputWidth, size_t inputHeight, size_t numInputMaps,
+                        size_t kernelWidth, size_t kernelHeight, size_t numParallelMaps)
+        { resize(inputWidth, inputHeight, numInputMaps, 1, 1,
+                 kernelWidth, kernelHeight, numParallelMaps); }
+
+    virtual void resize(size_t inputWidth, size_t inputHeight, size_t numInputMaps,
+                        size_t strideX, size_t strideY,
+                        size_t kernelWidth, size_t kernelHeight, size_t numParallelMaps) = 0;
+};
 
 
 

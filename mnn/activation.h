@@ -134,7 +134,7 @@ struct Sine : public Base
 
     template <typename Float>
     static Float derivative(Float error, Float state)
-        { return std::cos(state * error) * error; }
+        { return std::cos(state) * error; }
 };
 
 /** cosine activation */
@@ -148,7 +148,7 @@ struct Cosine : public Base
 
 	template <typename Float>
     static Float derivative(Float error, Float state)
-        { return -std::sin(state * error) * error; }
+        { return -std::sin(state) * error; }
 };
 
 /** smooth activation - a sigmoid curve */

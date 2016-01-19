@@ -8,13 +8,13 @@
     <p>created 1/11/2016</p>
 
 
-    input      kernel    output
+    input       kernel    output
 
-    x x x x    x x       input - kernel + 1
+    x x x x x   x x       (input - kernel) / stride + 1
 
-    x x x x    x x
+    x x x x x   x x
 
-    x x x x
+    x x x x x
 
 
 */
@@ -27,12 +27,23 @@
 
 MNN_TEMPLATE
 MNN_CONVOLUTION::Convolution(size_t inputWidth, size_t inputHeight, size_t inputMaps,
+                             size_t strideX, size_t strideY,
                              size_t kernelWidth, size_t kernelHeight, size_t outputMaps,
                              Float learnRate)
     : learnRate_	(learnRate)
     , momentum_     (.1)
 {
-    resize(inputWidth, inputHeight, inputMaps, kernelWidth, kernelHeight, outputMaps);
+    resize(inputWidth, inputHeight, inputMaps,
+           strideX, strideY, kernelWidth, kernelHeight, outputMaps);
+}
+
+MNN_TEMPLATE
+MNN_CONVOLUTION::Convolution(size_t inputWidth, size_t inputHeight, size_t inputMaps,
+                             size_t kernelWidth, size_t kernelHeight, size_t outputMaps,
+                             Float learnRate)
+    : Convolution(inputWidth, inputHeight, inputMaps, 1, 1,
+                  kernelWidth, kernelHeight, outputMaps, learnRate)
+{
 }
 
 MNN_TEMPLATE
@@ -65,6 +76,12 @@ Convolution<Float, ActFunc>& MNN_CONVOLUTION::operator = (const Layer<Float>& la
     inputHeight_ = net->inputHeight_;
     kernelWidth_ = net->kernelWidth_;
     kernelHeight_ = net->kernelHeight_;
+    scanWidth_ = net->scanWidth_;
+    scanHeight_ = net->scanHeight_;
+    strideX_ = net->strideX_;
+    strideY_ = net->strideY_;
+    inputMaps_ = net->inputMaps_;
+    parallelMaps_ = net->parallelMaps_;
 
     learnRate_ = net->learnRate_;
     momentum_ = net->momentum_;
@@ -84,7 +101,9 @@ void MNN_CONVOLUTION::serialize(std::ostream& s) const
     s << " " << learnRate_ << " " << momentum_;
     // dimension
     s << " " << inputWidth_ << " " << inputHeight_
-      << " " << kernelWidth_ << " " << kernelHeight_;
+      << " " << kernelWidth_ << " " << kernelHeight_
+      << " " << strideX_ << " " << strideY_
+      << " " << inputMaps_ << " " << parallelMaps_;
     // weights
     for (auto w : weight_)
         s << " " << w;
@@ -107,9 +126,9 @@ void MNN_CONVOLUTION::deserialize(std::istream& s)
     // settings
     s >> learnRate_ >> momentum_;
     // dimension
-    size_t iw, ih, kw, kh;
-    s >> iw >> ih >> kw >> kh;
-    resize(iw, ih, kw, kh);
+    size_t iw, ih, kw, kh, im, pm, sx, sy;
+    s >> iw >> ih >> kw >> kh >> sx >> sy >> im >> pm;
+    resize(iw, ih, im, sx, sy, kw, kh, pm);
     // weights
     for (auto& w : weight_)
         s >> w;
@@ -119,16 +138,9 @@ void MNN_CONVOLUTION::deserialize(std::istream& s)
 // ----------- nn interface --------------
 
 MNN_TEMPLATE
-void MNN_CONVOLUTION::resize(size_t inputWidth, size_t inputHeight,
-                             size_t kernelWidth, size_t kernelHeight)
-{
-    resize(inputWidth, inputHeight, 1,
-           kernelWidth, kernelHeight, 1);
-}
-
-MNN_TEMPLATE
 void MNN_CONVOLUTION::resize(size_t inputWidth, size_t inputHeight, size_t inputMaps,
-                             size_t kernelWidth, size_t kernelHeight, size_t outputMaps)
+                             size_t strideX, size_t strideY,
+                             size_t kernelWidth, size_t kernelHeight, size_t parallelMaps)
 {
     assert(kernelWidth <= inputWidth && kernelHeight <= inputHeight
            && "input smaller than kernel size, in Convolution layer");
@@ -138,13 +150,15 @@ void MNN_CONVOLUTION::resize(size_t inputWidth, size_t inputHeight, size_t input
     kernelWidth_ = kernelWidth;
     kernelHeight_ = kernelHeight;
     inputMaps_ = inputMaps;
-    outputMaps_ = outputMaps;
-    scanWidth_ = inputWidth_ - kernelWidth_ + 1;
-    scanHeight_ = inputHeight_ - kernelHeight_ + 1;
+    parallelMaps_ = parallelMaps;
+    strideX_ = strideX;
+    strideY_ = strideY;
+    scanWidth_ = (inputWidth_ - kernelWidth_) / strideX_ + 1;
+    scanHeight_ = (inputHeight_ - kernelHeight_) / strideY_ + 1;
 
     input_.resize(inputWidth_ * inputHeight_ * inputMaps_);
-    output_.resize(scanWidth_ * scanHeight_ * outputMaps_);
-    weight_.resize(kernelWidth * kernelHeight * outputMaps_);
+    output_.resize(scanWidth_ * scanHeight_ * parallelMaps_ * inputMaps_);
+    weight_.resize(kernelWidth * kernelHeight * parallelMaps_ * inputMaps_);
     prevDelta_.resize(weight_.size());
 }
 /*
@@ -155,18 +169,6 @@ void MNN_CONVOLUTION::grow(size_t nrIn, size_t nrOut, Float randomDev)
         return;
 }
 */
-
-MNN_TEMPLATE
-size_t MNN_CONVOLUTION::numIn() const
-{
-    return input_.size();
-}
-
-MNN_TEMPLATE
-size_t MNN_CONVOLUTION::numOut() const
-{
-    return output_.size();
-}
 
 
 MNN_TEMPLATE
@@ -201,21 +203,23 @@ void MNN_CONVOLUTION::fprop(const Float * input, Float * output)
     for (size_t i=0; i<input_.size(); ++i, ++input)
         input_[i] = *input;
 
-    // propagate
-    auto o = &output_[0];
-    for (size_t om = 0; om < outputMaps_; ++om)
-    for (size_t sy = 0; sy < scanHeight_; ++sy)
-    for (size_t sx = 0; sx < scanWidth_; ++sx, ++o)
-    {
-        auto w = &weight_[om * kernelWidth_ * kernelHeight_];
-        Float sum = 0;
-        for (size_t iy = 0; iy < kernelHeight_; ++iy)
-        for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w)
-        {
-            sum += input_[(sy + iy) * inputWidth_ + sx + ix] * *w;
-        }
+    const size_t
+            mapSizeInput = inputWidth_ * inputHeight_,
+            mapSizeWeight = kernelWidth_ * kernelHeight_,
+            mapSizeOutput = scanWidth_ * scanHeight_;
 
-        *o = ActFunc::activation(sum);
+    for (size_t om = 0; om < parallelMaps_; ++om)
+    for (size_t im = 0; im < inputMaps_; ++im)
+    {
+        const size_t idx = (om * inputMaps_ + im);
+
+        ConvolutionMatrix::fprop<Float, ActFunc>(
+                    &input_[im * mapSizeInput],
+                    &output_[idx * mapSizeOutput],
+                    &weight_[idx * mapSizeWeight],
+                    inputWidth_, inputHeight_,
+                    kernelWidth_, kernelHeight_,
+                    strideX_, strideY_);
     }
 
     // copy to caller
@@ -229,47 +233,54 @@ void MNN_CONVOLUTION::bprop(const Float * error, Float * error_output,
 {
     global_learn_rate *= learnRate_;
 
-    const Float * e;
+    const size_t
+            mapSizeInput = inputWidth_ * inputHeight_,
+            mapSizeWeight = kernelWidth_ * kernelHeight_,
+            mapSizeOutput = scanWidth_ * scanHeight_;
+
+    // get error derivatives
+    if (outputErr_.size() != output_.size())
+        outputErr_.resize(output_.size());
+    for (size_t i=0; i<output_.size(); ++i)
+        outputErr_[i] = ActFunc::derivative(error[i], output_[i]);
 
     // pass error through
-    // by accumulating into input field
+    // by accumulating into input fields
     if (error_output)
     {
-        for (size_t i=0; i<numIn(); ++i)
-            error_output[i] = 0.;
-
-        auto e = error;
-        for (size_t sy = 0; sy < scanHeight_; ++sy)
-        for (size_t sx = 0; sx < scanWidth_; ++sx, ++e)
+        for (size_t om = 0; om < parallelMaps_; ++om)
+        for (size_t im = 0; im < inputMaps_; ++im)
         {
-            auto w = &weight_[0];
-            for (size_t iy = 0; iy < kernelHeight_; ++iy)
-            for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w)
-            {
-                error_output[(sy + iy) * inputWidth_ + sx + ix]
-                        += *e * *w;
-            }
+            const size_t idx = (om * inputMaps_ + im);
+
+            ConvolutionMatrix::bprop<Float>(
+                        &error_output   [im * mapSizeInput],
+                        &outputErr_     [idx * mapSizeOutput],
+                        &weight_        [idx * mapSizeWeight],
+                        inputWidth_, inputHeight_,
+                        kernelWidth_, kernelHeight_,
+                        strideX_, strideY_);
         }
     }
 
-    // backprob derivative
-    auto o = &output_[0];
-    e = error;
-    for (size_t sy = 0; sy < scanHeight_; ++sy)
-    for (size_t sx = 0; sx < scanWidth_; ++sx, ++o)
+    // adjust weights
+    if (weightBuffer_.size() != mapSizeWeight)
+        weightBuffer_.resize(mapSizeWeight);
+    for (size_t om = 0; om < parallelMaps_; ++om)
+    for (size_t im = 0; im < inputMaps_; ++im)
     {
-        Float de = ActFunc::derivative(*e, *o);
+        const size_t idx = (om * inputMaps_ + im);
 
-        auto w = &weight_[0];
-        auto pd = &prevDelta_[0];
-        for (size_t iy = 0; iy < kernelHeight_; ++iy)
-        for (size_t ix = 0; ix < kernelWidth_; ++ix, ++w, ++pd)
-        {
-            *pd = momentum_ * *pd
-                + global_learn_rate * de
-                    * input_[(sy + iy) * inputWidth_ + sx + ix];
-            *w += *pd;
-        }
+        ConvolutionMatrix::gradient_descent<Float>(
+                    &input_     [im * mapSizeInput],
+                    &outputErr_ [idx * mapSizeOutput],
+                    &weight_    [idx * mapSizeWeight],
+                    &prevDelta_ [idx * mapSizeWeight],
+                    &weightBuffer_[0],
+                    inputWidth_, inputHeight_,
+                    kernelWidth_, kernelHeight_,
+                    strideX_, strideY_,
+                    global_learn_rate, momentum_);
     }
 }
 
@@ -295,12 +306,23 @@ void MNN_CONVOLUTION::info(std::ostream& out,
         << "\n" << pf << "learnrate  : " << learnRate_
         << "\n" << pf << "momentum   : " << momentum_
         << "\n" << pf << "activation : " << ActFunc::static_name()
-        << "\n" << pf << "inputs     : "
-                << numIn() << " (" << inputWidth_ << "x" << inputHeight_ << ")"
-        << "\n" << pf << "outputs    : "
-                << numOut() << " (" << scanWidth_ << "x" << scanHeight_ << ")"
-        << "\n" << pf << "kernel     : " << kernelWidth_ << "x" << kernelHeight_
-        << "\n" << pf << "parameters : " << numParameters()
+        << "\n" << pf << "inputs     : " << numIn() << " ("
+                      << inputWidth_ << "x" << inputHeight_;
+    if (inputMaps_ > 1)
+        out << " x " << inputMaps_;
+    out << ")";
+    if (strideX_ > 1 || strideY_ > 1)
+        out << "\n" << pf << "stride     : " << strideX_ << "x" << strideY_;
+    out << "\n" << pf << "outputs    : " << numOut() << " ("
+                      << scanWidth_ << "x" << scanHeight_;
+    const size_t outMaps = numOutputMaps();
+    if (outMaps > 1)
+        out << " x " << outMaps;
+    out << ")";
+    out << "\n" << pf << "kernel     : " << kernelWidth_ << "x" << kernelHeight_;
+    if (outMaps > 1)
+        out << " x " << outMaps;
+    out << "\n" << pf << "parameters : " << numParameters()
         << "\n";
 }
 
