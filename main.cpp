@@ -325,7 +325,7 @@ public:
             rbm->brainwash();
             rbm->setMomentum(momentum_);
             rbm_.push_back(rbm);
-            stack_.add(rbm);
+            stack_.addLayer(rbm);
         }
     }
 
@@ -847,7 +847,7 @@ void trainAutoencoderStack()
         const Float* image = set.image(index);
 
         // propagate through already trained stack
-        if (net->numLayer())
+        if (net->numLayers())
         {
             if (buffer.size() != net->numOut())
                 buffer.resize(net->numOut());
@@ -925,7 +925,7 @@ int main()
 
     //auto l = MNN::Factory<float>::createLayer("feed_forward", "linear_rectified");
     //auto l = MNN::Factory<float>::loadTextFile("../mnist_e400_stack.txt");
-    //l->info();
+    //l->info(); return 0;
 
     //TrainPosition t; t.exec(); return 0;
     TrainMnist t; t.exec(); return 0;

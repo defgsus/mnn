@@ -19,7 +19,7 @@
  **/
 
 // use cifar instead of mnist
-#define CIFAR
+//#define CIFAR
 
 #include <fstream>
 #include <iomanip>
@@ -162,7 +162,7 @@ void TrainMnist::Private::saveAllLayers(const std::string& postfix)
     net.saveTextFile(postfix + "_stack.txt");
 #if 0
     // save individual layers
-    for (size_t i=0; i<net.numLayer(); ++i)
+    for (size_t i=0; i<net.numLayers(); ++i)
     {
         std::stringstream str;
         str << postfix << "_layer_" << i
@@ -192,7 +192,7 @@ void TrainMnist::Private::createNet()
     {
         auto l = new MNN::FeedForward<Float, MNN::Activation::Linear>(1, 1, 1., false);
         l->setMomentum(.5);
-        net.add(l);
+        net.addLayer(l);
     }
     net.loadTextFile("../autoencoder-stack-5-mnist-14x14.txt");
     trainSet.scale(14, 14); testSet.scale(14, 14);
@@ -201,7 +201,7 @@ void TrainMnist::Private::createNet()
         auto l = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut, 1.);
         l->setMomentum(.5);
         l->brainwash(0.1);
-        net.add(l);
+        net.addLayer(l);
     }
     learnRate = .01;
 
@@ -223,9 +223,9 @@ void TrainMnist::Private::createNet()
     l1->setMomentum(.7);
 //    l2->setMomentum(.8);
     l3->setMomentum(.9);
-    net.add( l1 );
-//    net.add( l2 );
-    net.add( l3 );
+    net.addLayer( l1 );
+//    net.addLayer( l2 );
+    net.addLayer( l3 );
 
     net.brainwash(0.1);
     learnRate = 0.01;
@@ -252,7 +252,7 @@ void TrainMnist::Private::createNet()
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.2);
         l->setLearnRateBias(.2);
-        net.add(l);
+        net.addLayer(l);
     }
     if (1)
     {
@@ -261,7 +261,7 @@ void TrainMnist::Private::createNet()
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
         l->setLearnRateBias(.2);
-        net.add(l);
+        net.addLayer(l);
     }
     // output layer
     {
@@ -271,7 +271,7 @@ void TrainMnist::Private::createNet()
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
         l->setLearnRateBias(.2);
-        net.add(l);
+        net.addLayer(l);
     }
 
     net.brainwash();
@@ -293,7 +293,7 @@ void TrainMnist::Private::createNet()
         l->setLearnRateBias(0.0);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.2);
-        net.add(l);
+        net.addLayer(l);
     }
     {
         auto l = new MNN::FeedForward<Float, Act>(net.numOut(), 500);
@@ -303,7 +303,7 @@ void TrainMnist::Private::createNet()
         l->setLearnRateBias(0.0);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
-        net.add(l);
+        net.addLayer(l);
     }
     // output layer
     {
@@ -314,11 +314,11 @@ void TrainMnist::Private::createNet()
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
         l->setSoftmax(true);
-        net.add(l);
+        net.addLayer(l);
     }
 
     net.loadTextFile("../mnist_e300_stack.txt");
-    for (size_t i=0; i<net.numLayer()-1; ++i)
+    for (size_t i=0; i<net.numLayers()-1; ++i)
     {
         MNN::setLearnRate(net.layer(i), Float(0.7));
         MNN::setLearnRateBias(net.layer(i), Float(0.05));
@@ -340,7 +340,7 @@ void TrainMnist::Private::createNet()
                     trainSet.width(), trainSet.height(), 1,
                     5, 5, 6);
     l1->setMomentum(.9);
-    net.add(l1);
+    net.addLayer(l1);
     auto lprev = l1;
     for (int i = 0; i < 3; ++i)
     {
@@ -358,15 +358,15 @@ void TrainMnist::Private::createNet()
             delete lx;
             break;
         }
-        net.add(lx);
+        net.addLayer(lx);
         lprev = lx;
     }
     auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
-    net.add(lout);
+    net.addLayer(lout);
     //auto lout2 = new MNN::FeedForward<Float, MNN::Activation::Linear>(lout->numOut(), numOut, 0.1);
     //lout2->setMomentum(.9);
-    //net.add(lout2);
+    //net.addLayer(lout2);
 
     learnRate = 0.001;
 
@@ -385,7 +385,7 @@ void TrainMnist::Private::createNet()
                     5, 5,
                     14);
     l1->setMomentum(.9);
-    net.add(l1);
+    net.addLayer(l1);
     MNN::ConvolutionInterface* lprev = l1;
     if (0)
     {
@@ -395,7 +395,7 @@ void TrainMnist::Private::createNet()
                             4, 4,
                             2);
         l->setMomentum(.9);
-        net.add(l);
+        net.addLayer(l);
         lprev = l;
     }
     if (0)
@@ -406,20 +406,20 @@ void TrainMnist::Private::createNet()
                             2, 2,
                             2);
         l->setMomentum(.9);
-        net.add(l);
+        net.addLayer(l);
         lprev = l;
     }
     if (0)
     {
         auto l = new MNN::FeedForward<Float, MNN::Activation::Tanh>(net.numOut(), 200);
         l->setMomentum(.9);
-        net.add(l);
+        net.addLayer(l);
     }
     auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(
                 net.numOut(), numOut, 2.);
     lout->setMomentum(.9);
     lout->setSoftmax(true);
-    net.add(lout);
+    net.addLayer(lout);
 
     learnRate = 0.001;
 
@@ -443,7 +443,7 @@ void TrainMnist::Private::createNet()
                     5, 5,
                     32);
     l1->setMomentum(.9);
-    net.add(l1);
+    net.addLayer(l1);
     MNN::ConvolutionInterface* lprev = l1;
     if (1)
     {
@@ -453,10 +453,10 @@ void TrainMnist::Private::createNet()
                             3, 3,
                             4);
         l->setMomentum(.9);
-        net.add(l);
+        net.addLayer(l);
         lprev = l;
     }
-    if (1)
+    if (0)
     {
         auto l = new MNN::Convolution<Float, ConvAct>(
                             lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
@@ -464,20 +464,20 @@ void TrainMnist::Private::createNet()
                             2, 2,
                             1);
         l->setMomentum(.9);
-        net.add(l);
+        net.addLayer(l);
         lprev = l;
     }
     if (0)
     {
         auto l = new MNN::FeedForward<Float, MNN::Activation::Tanh>(net.numOut(), 200);
         l->setMomentum(.9);
-        net.add(l);
+        net.addLayer(l);
     }
     auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(
                 net.numOut(), numOut, 2.);
     lout->setMomentum(.9);
     lout->setSoftmax(true);
-    net.add(lout);
+    net.addLayer(lout);
 
     learnRate = 0.001;
 
@@ -512,7 +512,7 @@ void TrainMnist::Private::createNet()
         l1->setMomentum(.9);
         stack->add(l1);
     }
-    net.add(stack);
+    net.addLayer(stack);
     std::cout << net.numIn() << std::endl;
 
 
@@ -521,12 +521,12 @@ void TrainMnist::Private::createNet()
     {
         auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), 100, 0.1);
         lout->setMomentum(.9);
-        net.add(lout);
+        net.addLayer(lout);
     }
     auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
     lout->setSoftmax(true);
-    net.add(lout);
+    net.addLayer(lout);
 
     learnRate = 0.00001;
 
@@ -619,7 +619,7 @@ void TrainMnist::Private::train()
         if (epoch % num == 0)
         {
             //printState(net.outputs(), 10, 1);
-            for (size_t i=0; i<net.numLayer(); ++i)
+            for (size_t i=0; i<net.numLayers(); ++i)
             if (auto conv = dynamic_cast<MNN::ConvolutionInterface*>(net.layer(i)))
             {
                 std::cout << std::endl;

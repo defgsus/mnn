@@ -12,6 +12,7 @@
 #include <iostream>
 #include <fstream>
 
+#include "refcounted.h"
 #include "function.h"
 #include "exception.h"
 
@@ -54,17 +55,19 @@ namespace MNN {
  */
 template <typename Float>
 class Layer
+        : public RefCounted
 {
+    /** Copy-construction is disabled */
     Layer(const Layer<Float>&) = delete;
 
-	public:
+public:
 
+    /** The float type of this template instance */
     typedef Float type;
 
     // ----------- ctor ----------------------
 
 	Layer() { }
-	virtual ~Layer() { }
 
     // ----------- copying -------------------
 

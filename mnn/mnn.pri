@@ -4,7 +4,8 @@ SOURCES += \
     mnn/convolution_impl.inl \
     mnn/stack_parallel_impl.inl \
     mnn/feedforward_impl.inl \
-    $$PWD/factory_impl.inl
+    $$PWD/factory_impl.inl \
+    $$PWD/stack_impl.inl
 
 HEADERS += \
     mnn/activation.h \
@@ -18,4 +19,6 @@ HEADERS += \
     mnn/stack_parallel.h \
     mnn/interface.h \
     mnn/feedforward.h \
-    $$PWD/factory.h
+    $$PWD/factory.h \
+    $$PWD/stack.h \
+    $$PWD/refcounted.h

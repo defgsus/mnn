@@ -88,8 +88,7 @@ Layer<Float>* Factory<Float>::createFromStream_(std::istream& fs)
         MNN_EXCEPTION("Could not create layer '" << id << "' for deserialization");
 
     // handle special case of stacks
-    if (id == StackSerial<Float>::static_id()
-     || id == StackParallel<Float>::static_id())
+    if (auto stack = dynamic_cast<Stack<Float>*>(layer))
     {
         // id
         fs >> id;
@@ -106,17 +105,7 @@ Layer<Float>* Factory<Float>::createFromStream_(std::istream& fs)
         for (size_t i = 0; i < num; ++i)
         {
             auto sub = createFromStream_(fs);
-            // XXX TODO could use an interface here
-            if (auto stack = dynamic_cast<StackSerial<Float>*>(layer))
-                stack->add(sub);
-            else
-            if (auto stack = dynamic_cast<StackParallel<Float>*>(layer))
-                stack->add(sub);
-            else
-            {
-                delete sub;
-                MNN_EXCEPTION("Wrong stack object '" << layer->id() << "'");
-            }
+            stack->addLayer(sub);
         }
 
         return layer;

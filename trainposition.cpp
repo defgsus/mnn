@@ -21,9 +21,9 @@ TrainPosition::TrainPosition()
 
     auto net = new MNN::StackSerial<float>;
 
-    net->add( new MNN::FeedForward<float, MNN::Activation::Logistic>(entryLength_-1,500, 1*lr) );
-    net->add( new MNN::FeedForward<float, MNN::Activation::Logistic>(500,100, 1*lr) );
-    net->add( new MNN::FeedForward<float, MNN::Activation::Linear>(100,1, 1*lr) );
+    net->addLayer( new MNN::FeedForward<float, MNN::Activation::Logistic>(entryLength_-1,500, 1*lr) );
+    net->addLayer( new MNN::FeedForward<float, MNN::Activation::Logistic>(500,100, 1*lr) );
+    net->addLayer( new MNN::FeedForward<float, MNN::Activation::Linear>(100,1, 1*lr) );
 
     net_ = net;
 

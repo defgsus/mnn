@@ -17,22 +17,17 @@
 #include <vector>
 #include <iostream>
 
-#include "layer.h"
-#include "interface.h"
+#include "stack.h"
 
 namespace MNN {
 
 template <typename Float>
 class StackParallel
-        : public Layer<Float>
-        , public SetMomentumInterface<Float>
-        , public SetDropOutInterface<Float>
+        : public Stack<Float>
 {
-    public:
+public:
 
     StackParallel();
-
-    virtual ~StackParallel();
 
     // ----------- copying -------------------
 
@@ -41,61 +36,17 @@ class StackParallel
 
     virtual StackParallel<Float>& operator = (const Layer<Float>&) override;
 
-    // --------- MomentumInterface -----------
-
-    /** Sets momentum for ALL layers */
-    virtual void setMomentum(Float m) override;
-
-    // --------- DropOutInterface ------------
-
-    /** Sets dropout mode for ALL layers */
-    virtual void setDropOutMode(DropOutMode m) override;
-
-    /** Sets dropout probability for ALL layers */
-    virtual void setDropOut(Float probability) override;
-
     // ----------- nn interface --------------
 
     virtual void resize(size_t numIn, size_t numOut) override;
     virtual void grow(size_t nrIn, size_t nrOut, Float randomDev) override;
-    virtual void brainwash(Float variance = 1.) override;
 
     virtual size_t numIn() const override;
     virtual size_t numOut() const override;
-    virtual const Float* inputs() const override
-        { return layer_.front()->inputs(); }
-    virtual const Float* outputs() const override
-        { return &bufferOut_[0]; }
-    virtual const Float* weights() const override
-        { return layer_.front()->weights(); }
-    virtual Float* weights() override
-        { return layer_.front()->weights(); }
-    virtual void setWeight(size_t input, size_t output, Float w) override
-        { layer_.front()->setWeight(input, output, w); }
 
     // ------- layer interface ---------------
 
-    /** Destroys all layers */
-    void clearLayers();
-
-    /** return nr of layers */
-    size_t numLayer() const;
-
-    /** Adds a new layer, ownership IS TAKEN */
-    void add(Layer<Float>* layer);
-
-    /** Inserts a new layer before @p index, ownership IS TAKEN */
-    void insert(size_t index, Layer<Float>* layer);
-
-    /** To be called when a layer that has already been added
-        has changed it's size. */
-    void updateLayers() { resizeBuffers_(); }
-
-    /** Returns the @p index'th layer */
-    const Layer<Float>* layer(size_t index) const { return layer_[index]; }
-
-    /** Returns the @p index'th layer */
-    Layer<Float>* layer(size_t index) { return layer_[index]; }
+    virtual void updateLayers() override;
 
     // ------- propagation -------------------
 
@@ -109,12 +60,9 @@ class StackParallel
     static const char* static_id() { return "stack_parallel"; }
     virtual const char * id() const override { return static_id(); }
     virtual const char * name() const override { return "StackParallel"; }
-    virtual size_t numParameters() const override;
     virtual void info(std::ostream &out = std::cout,
                       const std::string& postFix = "") const override;
     virtual void dump(std::ostream &out = std::cout) const override;
-
-    virtual Float getWeightAverage() const override;
 
     // ------------- io ---------------
 
@@ -123,13 +71,8 @@ class StackParallel
 
 protected:
 
-    void resizeBuffers_();
-
     /** output buffer */
     std::vector<Float> bufferOut_;
-
-    /** inidividual layers */
-    std::vector<Layer<Float>*> layer_;
 };
 
 #include "stack_parallel_impl.inl"
