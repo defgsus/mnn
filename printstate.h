@@ -44,18 +44,24 @@ void printStateAscii(const F* state, size_t width, size_t height,
 
 template <typename F>
 void printStateAscii(const F* state, size_t width, size_t height, size_t instances,
-                     F amplitude = 1, std::ostream& out = std::cout)
+                     F amplitude = 1, std::ostream& out = std::cout, size_t maxCols = 230)
 {
     for (size_t j=0; j<height; ++j)
     {
+        size_t col = 0;
         for (size_t ins=0; ins<instances; ++ins)
         {
-            for (size_t i=0; i<width; ++i)
+            if (col >= maxCols)
+                break;
+            for (size_t i=0; i<width; ++i, ++col)
             {
+                if (col >= maxCols)
+                    break;
                 F s = state[(j * width + i) + ins * width * height] * amplitude;
                 out << ( s > .7 ? '#' : s > .35 ? '*' : s > .15 ? ':' : '.' );
             }
             out << " ";
+            ++col;
         }
         out << std::endl;
     }

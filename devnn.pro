@@ -14,38 +14,21 @@ CONFIG   -= app_bundle
 
 TEMPLATE = app
 
+include(mnn/mnn.pri)
 
 SOURCES += \
     main.cpp \
     trainposition.cpp \
     mnistset.cpp \
     trainmnist.cpp \
-    mnn/stack_serial_impl.inl \
-    mnn/perceptron_impl.inl \
-    mnn/perceptronbias_impl.inl \
-    mnn/rbm_impl.inl \
-    mnn/convolution_impl.inl \
-    mnn/stack_parallel_impl.inl \
     cifarset.cpp
 
 HEADERS += \
     trainposition.h \
     trainmnist.h \
-    mnn/activation.h  \
-    mnn/function.h  \
-    mnn/layer.h  \
-    mnn/mnn.h  \
-    mnn/perceptron.h  \
-    mnn/stack_serial.h  \
     mnistset.h \
-    mnn/perceptronbias.h \
-    mnn/rbm.h \
-    mnn/exception.h \
     printstate.h \
-    mnn/convolution.h \
-    mnn/stack_parallel.h \
     generate_input.h \
-    mnn/interface.h \
     cifarset.h
 
 OTHER_FILES += \

@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "mnn/mnn.h"
+//#include "mnn/factory.h"
 //#include "trainposition.h"
 #include "trainmnist.h"
 #include "mnistset.h"
@@ -264,9 +265,9 @@ void maint()
     l3->setMomentum(.5);
 #else
     F learnr = 1.;
-    auto l1 = new MNN::Perceptron<F, MNN::Activation::Tanh>(10,40, learnr * 1);
-    auto l2 = new MNN::Perceptron<F, MNN::Activation::Logistic>(40,10, learnr * 1);
-    auto l3 = new MNN::Perceptron<F, MNN::Activation::Linear>(10,10, learnr * 0.1);
+    auto l1 = new MNN::FeedForward<F, MNN::Activation::Tanh>(10,40, learnr * 1);
+    auto l2 = new MNN::FeedForward<F, MNN::Activation::Logistic>(40,10, learnr * 1);
+    auto l3 = new MNN::FeedForward<F, MNN::Activation::Linear>(10,10, learnr * 0.1);
     l1->setMomentum(.5);
     l2->setMomentum(.5);
     l3->setMomentum(.5);
@@ -698,14 +699,14 @@ void trainRecon()
     // load previous layers
     MNN::Layer<Float> * net = 0;
 #if 1
-    net = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(1, 1);
+    net = new MNN::FeedForward<Float, MNN::Activation::Linear>(1, 1);
     net->loadTextFile("../nets/tanh/autoencoder-mnist-noise-500h.txt");
 
     numIn = net->numOut();
 #endif
 
     // --- the layer to learn ---
-    auto layer = new MNN::PerceptronBias<Float, MNN::Activation::Tanh>(
+    auto layer = new MNN::FeedForward<Float, MNN::Activation::Tanh>(
                 numIn, 500);
     layer->setMomentum(.9);
     layer->setLearnRateBias(1.);
@@ -826,7 +827,7 @@ void trainAutoencoderStack()
 
     auto net = new MNN::StackSerial<Float>();
 
-    auto layer = new MNN::Perceptron<Float, MNN::Activation::Linear>(
+    auto layer = new MNN::FeedForward<Float, MNN::Activation::Linear>(
                     numIn, numIn * 2    , 1, false);
     layer->setMomentum(.9);
     layer->brainwash(0.1);
@@ -891,7 +892,7 @@ void trainAutoencoderStack()
                 if (newOut < 100)
                     break;
 
-                layer = new MNN::Perceptron<Float, MNN::Activation::Linear>(
+                layer = new MNN::FeedForward<Float, MNN::Activation::Linear>(
                             net->numOut(), newOut, 1, false);
                 layer->setMomentum(.9);
                 layer->brainwash(0.1);
@@ -921,6 +922,10 @@ void testCifar()
 int main()
 {
 	srand(time(NULL));
+
+    //auto l = MNN::Factory<float>::createLayer("feed_forward", "linear_rectified");
+    //auto l = MNN::Factory<float>::loadTextFile("../mnist_e400_stack.txt");
+    //l->info();
 
     //TrainPosition t; t.exec(); return 0;
     TrainMnist t; t.exec(); return 0;

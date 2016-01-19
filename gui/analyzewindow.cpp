@@ -22,7 +22,7 @@
 
 struct AnalyzeWindow::Private
 {
-    typedef MNN::PerceptronBias<float, MNN::Activation::Linear> NNLayer;
+    typedef MNN::FeedForward<float, MNN::Activation::Linear> NNLayer;
 
     Private(AnalyzeWindow * win )
         : win       (win)

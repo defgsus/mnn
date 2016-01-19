@@ -8,8 +8,8 @@
     <p>created 1/14/2016</p>
 */
 
-#ifndef MNN_INTERFACE_H
-#define MNN_INTERFACE_H
+#ifndef MNNSRC_INTERFACE_H
+#define MNNSRC_INTERFACE_H
 
 #include <cstddef> // for size_t
 
@@ -120,6 +120,26 @@ public:
 
     virtual bool isSoftmax() const = 0;
 };
+
+
+// ---------------- softmax ----------------
+
+/** Interface for setting use of bias cells */
+class SetBiasEnabledInterface
+{
+public:
+
+    virtual void setBiasEnabled(bool enable) = 0;
+};
+
+/** Interface for getting use of bias mode */
+class GetBiasEnabledInterface
+{
+public:
+
+    virtual bool isBiasEnabled() const = 0;
+};
+
 
 
 // ---------------- momentum ----------------
@@ -245,9 +265,35 @@ void setMomentum(Layer<Float>* l, Float v)
         d->setMomentum(v);
 }
 
+template <typename Float>
+void setSoftmax(Layer<Float>* l, bool enable)
+{
+    if (auto d = dynamic_cast<SetSoftmaxInterface*>(l))
+        d->setSoftmax(enable);
+}
 
+template <typename Float>
+void setBiasEnabled(Layer<Float>* l, bool enable)
+{
+    if (auto d = dynamic_cast<SetBiasEnabledInterface*>(l))
+        d->setBiasEnabled(enable);
+}
+
+template <typename Float>
+void setDropOutMode(Layer<Float>* l, DropOutMode m)
+{
+    if (auto d = dynamic_cast<SetDropOutInterface<Float>*>(l))
+        d->setDropOutMode(m);
+}
+
+template <typename Float>
+void setDropOut(Layer<Float>* l, Float prob)
+{
+    if (auto d = dynamic_cast<SetDropOutInterface<Float>*>(l))
+        d->setDropOut(prob);
+}
 
 } // namespace MNN
 
-#endif // MNN_INTERFACE_H
+#endif // MNNSRC_INTERFACE_H
 

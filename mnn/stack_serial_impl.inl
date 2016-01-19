@@ -52,7 +52,10 @@ void MNN_STACKSERIAL::serialize(std::ostream& s) const
     s << " " << numLayer() << " ";
     // each layer
     for (auto l : layer_)
+    {
+        s << "\n";
         l->serialize(s);
+    }
 }
 
 MNN_TEMPLATE
@@ -106,6 +109,15 @@ void MNN_STACKSERIAL::setMomentum(Float m)
     for (auto l : layer_)
         if (auto d = dynamic_cast<SetMomentumInterface<Float>*>(l))
             d->setMomentum(m);
+}
+
+
+MNN_TEMPLATE
+void MNN_STACKSERIAL::setSoftmax(bool e)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetSoftmaxInterface*>(l))
+            d->setSoftmax(e);
 }
 
 

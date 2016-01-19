@@ -5,8 +5,8 @@
 	@author def.gsus-
 	@version 2012/10/19 started
 */
-#ifndef MNN_STACK_SERIAL_H_INCLUDED
-#define MNN_STACK_SERIAL_H_INCLUDED
+#ifndef MNNSRC_STACK_SERIAL_H_INCLUDED
+#define MNNSRC_STACK_SERIAL_H_INCLUDED
 
 #include <cmath>
 #include <vector>
@@ -22,6 +22,7 @@ class StackSerial
         : public Layer<Float>
         , public SetMomentumInterface<Float>
         , public SetDropOutInterface<Float>
+        , public SetSoftmaxInterface
 {
 	public:
 
@@ -48,6 +49,11 @@ class StackSerial
 
     /** Sets dropout probability for ALL layers */
     virtual void setDropOut(Float probability) override;
+
+    // -------- SetSoftmaxInterface ----------
+
+    /** Sets the softmax mode for ALL layers */
+    virtual void setSoftmax(bool enable) override;
 
 	// ----------- nn interface --------------
 
@@ -101,7 +107,8 @@ class StackSerial
 
 	// ------- info --------------------------
 
-    virtual const char * id() const override { return "StackSerial"; }
+    static const char* static_id() { return "stack_serial"; }
+    virtual const char * id() const override { return static_id(); }
     virtual const char * name() const override { return "StackSerial"; }
     virtual size_t numParameters() const override;
     virtual void info(std::ostream &out = std::cout,
@@ -130,4 +137,4 @@ protected:
 
 } // namespace MNN
 
-#endif // MNN_STACK_SERIAL_H_INCLUDED
+#endif // MNNSRC_STACK_SERIAL_H_INCLUDED

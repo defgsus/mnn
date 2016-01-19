@@ -8,8 +8,8 @@
     <p>created 1/11/2016</p>
 */
 
-#ifndef MNN_CONVOLUTION_H
-#define MNN_CONVOLUTION_H
+#ifndef MNNSRC_CONVOLUTION_H
+#define MNNSRC_CONVOLUTION_H
 
 #include <cmath>
 #include <cassert>
@@ -40,6 +40,12 @@ class Convolution
         : public Layer<Float>
         , public GetMomentumInterface<Float>
         , public SetMomentumInterface<Float>
+        , public SetLearnRateInterface<Float>
+        , public GetLearnRateInterface<Float>
+        , public SetLearnRateBiasInterface<Float>
+        , public GetLearnRateBiasInterface<Float>
+        , public GetBiasEnabledInterface
+        , public SetBiasEnabledInterface
         , public ConvolutionInterface
 {
     public:
@@ -71,6 +77,21 @@ class Convolution
 
     virtual Float momentum() const override { return momentum_; }
     virtual void setMomentum(Float m) override { momentum_ = m; }
+
+    // --------- LearnRateInterface ----------
+
+    virtual Float learnRate() const override { return learnRate_; }
+    virtual void setLearnRate(Float lr) override { learnRate_ = lr; }
+
+    // --------- LearnRateBiasInterface ------
+
+    virtual Float learnRateBias() const override { return learnRateBias_; }
+    virtual void setLearnRateBias(Float lr) override { learnRateBias_ = lr; }
+
+    // ----------- BiasEnabledInterface ------
+
+    virtual void setBiasEnabled(bool enable) override { doBias_ = enable; }
+    virtual bool isBiasEnabled() const override { return doBias_; }
 
     // ----------- nn interface --------------
 
@@ -122,9 +143,10 @@ class Convolution
 
     // ------- info --------------------------
 
-    virtual const char * id() const override { return "Convolution"; }
+    static const char* static_id() { return "convolution"; }
+    virtual const char * id() const override { return static_id(); }
     virtual const char * name() const override { return "Convolution"; }
-    virtual size_t numParameters() const override { return weight_.size(); }
+    virtual size_t numParameters() const override { return weight_.size() + bias_.size(); }
     virtual void info(std::ostream &out = std::cout,
                       const std::string& postFix = "") const override;
     virtual void dump(std::ostream &out = std::cout) const override;
@@ -142,6 +164,7 @@ protected:
         input_,
         output_,
         weight_,
+        bias_,
         outputErr_,
         prevDelta_,
         weightBuffer_;
@@ -154,12 +177,15 @@ protected:
         strideX_, strideY_;
     Float
         learnRate_,
+        learnRateBias_,
         momentum_;
+
+    bool doBias_;
 };
 
 #include "convolution_impl.inl"
 
 } // namespace MNN
 
-#endif // MNN_CONVOLUTION_H
+#endif // MNNSRC_CONVOLUTION_H
 

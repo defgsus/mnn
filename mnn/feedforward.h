@@ -2,14 +2,14 @@
 
     @brief
 
-    <p>(c) 2015, stefan.berke@modular-audio-graphics.com</p>
+    <p>(c) 2016, stefan.berke@modular-audio-graphics.com</p>
     <p>All rights reserved</p>
 
-    <p>created 12/21/2015</p>
+    <p>created 1/19/2016</p>
 */
 
-#ifndef MNN_PERCEPTRONBIAS_H_INCLUDED
-#define MNN_PERCEPTRONBIAS_H_INCLUDED
+#ifndef MNNSRC_DENSEMATRIX_H
+#define MNNSRC_DENSEMATRIX_H
 
 #include <cmath>
 #include <vector>
@@ -20,15 +20,16 @@
 
 namespace MNN {
 
-/** Perceptron with bias cells.
-    Not perfectly working yet */
+/** Dense matrix layer, e.g. a perceptron or classic auto-encoder. */
 template <typename Float, class ActFunc>
-class PerceptronBias
+class FeedForward
         : public Layer<Float>
         , public GetLearnRateInterface<Float>
         , public SetLearnRateInterface<Float>
         , public GetLearnRateBiasInterface<Float>
         , public SetLearnRateBiasInterface<Float>
+        , public GetBiasEnabledInterface
+        , public SetBiasEnabledInterface
         , public GetMomentumInterface<Float>
         , public SetMomentumInterface<Float>
         , public GetSoftmaxInterface
@@ -37,16 +38,16 @@ class PerceptronBias
 {
     public:
 
-    PerceptronBias(size_t numIn, size_t numOut, Float learnRate = 1);
+    FeedForward(size_t numIn, size_t numOut, Float learnRate = 1, bool doBias = true);
 
-    virtual ~PerceptronBias();
+    virtual ~FeedForward();
 
     // ----------- copying -------------------
 
-    virtual PerceptronBias<Float, ActFunc> * cloneClass() const override
-        { return new PerceptronBias<Float, ActFunc>(numIn(), numOut(), learnRate_); }
+    virtual FeedForward<Float, ActFunc> * cloneClass() const override
+        { return new FeedForward<Float, ActFunc>(numIn(), numOut(), learnRate_, doBias_); }
 
-    virtual PerceptronBias<Float, ActFunc>& operator = (const Layer<Float>&) override;
+    virtual FeedForward<Float, ActFunc>& operator = (const Layer<Float>&) override;
 
     // --------- LearnRateInterface ----------
 
@@ -57,6 +58,11 @@ class PerceptronBias
 
     virtual Float learnRateBias() const override { return learnRateBias_; }
     virtual void setLearnRateBias(Float lr) override { learnRateBias_ = lr; }
+
+    // ----------- BiasEnabledInterface ------
+
+    virtual void setBiasEnabled(bool enable) override { doBias_ = enable; }
+    virtual bool isBiasEnabled() const override { return doBias_; }
 
     // --------- MomentumInterface -----------
 
@@ -82,8 +88,8 @@ class PerceptronBias
     virtual void grow(size_t nrIn, size_t nrOut, Float randomDev) override;
     virtual void brainwash(Float variance = 1.) override;
 
-    virtual size_t numIn() const override;
-    virtual size_t numOut() const override;
+    virtual size_t numIn() const override { return input_.size(); }
+    virtual size_t numOut() const override { return output_.size(); }
     virtual const Float* inputs() const override { return &input_[0]; }
     virtual const Float* outputs() const override { return &output_[0]; }
     virtual const Float* weights() const override { return &weight_[0]; }
@@ -101,8 +107,9 @@ class PerceptronBias
 
     // ------- info --------------------------
 
-    virtual const char * id() const override { return "PerceptronBias"; }
-    virtual const char * name() const override { return "PerceptronBias"; }
+    static const char* static_id() { return "feed_forward"; }
+    virtual const char * id() const override { return static_id(); }
+    virtual const char * name() const override { return "FeedForward"; }
     virtual size_t numParameters() const override { return weight_.size() + bias_.size(); }
     virtual void info(std::ostream &out = std::cout,
                       const std::string& postFix = "") const override;
@@ -124,6 +131,7 @@ protected:
         weight_,
         prevDelta_,
         errorDer_,
+        // scratch space for reconstruction
         reconInput_,
         reconError_,
         reconOutput_;
@@ -132,12 +140,13 @@ protected:
           learnRateBias_,
           momentum_;
 
-    bool doSoftmax_;
+    bool doBias_,
+         doSoftmax_;
 };
 
-#include "perceptronbias_impl.inl"
+#include "feedforward_impl.inl"
 
 } // namespace MNN
 
-#endif // MNN_PERCEPTRONBIAS_H_INCLUDED
+#endif // MNNSRC_DENSEMATRIX_H
 

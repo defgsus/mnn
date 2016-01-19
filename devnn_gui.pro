@@ -11,6 +11,7 @@ CONFIG   += c++11
 
 TEMPLATE = app
 
+include(mnn/mnn.pri)
 
 SOURCES += \
     main_gui.cpp \
@@ -18,12 +19,6 @@ SOURCES += \
     mnistset.cpp \
     trainmnist.cpp \
     cifarset.cpp \
-    mnn/stack_serial_impl.inl \
-    mnn/perceptron_impl.inl \
-    mnn/perceptronbias_impl.inl \
-    mnn/rbm_impl.inl \
-    mnn/convolution_impl.inl \
-    mnn/stack_parallel_impl.inl \
     gui/labwindow.cpp \
     gui/statedisplay.cpp \
     gui/trainthread.cpp \
@@ -32,21 +27,9 @@ SOURCES += \
 HEADERS += \
     trainposition.h \
     trainmnist.h \
-    mnn/activation.h  \
-    mnn/function.h  \
-    mnn/layer.h  \
-    mnn/mnn.h  \
-    mnn/perceptron.h  \
-    mnn/stack_serial.h  \
     mnistset.h \
-    mnn/perceptronbias.h \
-    mnn/rbm.h \
-    mnn/exception.h \
     printstate.h \
-    mnn/convolution.h \
-    mnn/stack_parallel.h \
     generate_input.h \
-    mnn/interface.h \
     cifarset.h \
     gui/labwindow.h \
     gui/statedisplay.h \

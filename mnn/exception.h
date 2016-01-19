@@ -8,8 +8,8 @@
     <p>created 12/22/2015</p>
 */
 
-#ifndef MNN_EXCEPTION_H_INCLUDED
-#define MNN_EXCEPTION_H_INCLUDED
+#ifndef MNNSRC_EXCEPTION_H_INCLUDED
+#define MNNSRC_EXCEPTION_H_INCLUDED
 
 #include <exception>
 #include <string>
@@ -43,5 +43,5 @@ public:
 
 } // namespace MNN
 
-#endif // MNN_EXCEPTION_H_INCLUDED
+#endif // MNNSRC_EXCEPTION_H_INCLUDED
 

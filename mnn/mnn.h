@@ -5,8 +5,8 @@
 	@author def.gsus-
 	@version 2012/10/15 started
 */
-#ifndef MNN_MNN_H_INCLUDED
-#define MNN_MNN_H_INCLUDED
+#ifndef MNNSRC_MNN_H_INCLUDED
+#define MNNSRC_MNN_H_INCLUDED
 
 #include "mnn/activation.h"
 #include "mnn/function.h"
@@ -14,10 +14,9 @@
 #include "mnn/layer.h"
 #include "mnn/stack_serial.h"
 #include "mnn/stack_parallel.h"
-#include "mnn/perceptron.h"
-#include "mnn/perceptronbias.h"
-#include "mnn/rbm.h"
+#include "mnn/feedforward.h"
 #include "mnn/convolution.h"
+#include "mnn/rbm.h"
 
 namespace MNN {
 
@@ -40,4 +39,4 @@ void initPassThrough(Layer* layer, typename Layer::type amplitude = 1, size_t nu
 
 } // namespace MNN
 
-#endif // MNN_MNN_H_INCLUDED
+#endif // MNNSRC_MNN_H_INCLUDED

@@ -6,8 +6,8 @@
 	@version 2012/10/15 started
     @version 2015/12/21 started major revision
 */
-#ifndef MNN_LAYER_H_INCLUDED
-#define MNN_LAYER_H_INCLUDED
+#ifndef MNNSRC_LAYER_H_INCLUDED
+#define MNNSRC_LAYER_H_INCLUDED
 
 #include <iostream>
 #include <fstream>
@@ -208,4 +208,4 @@ void Layer<Float>::loadTextFile(const std::string& filename)
 
 } // namespace MNN
 
-#endif // MNN_LAYER_H_INCLUDED
+#endif // MNNSRC_LAYER_H_INCLUDED

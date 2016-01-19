@@ -5,8 +5,8 @@
 	@author def.gsus-
 	@version 2012/10/15 started
 */
-#ifndef MNN_ACTIVATION_H_INCLUDED
-#define MNN_ACTIVATION_H_INCLUDED
+#ifndef MNNSRC_ACTIVATION_H_INCLUDED
+#define MNNSRC_ACTIVATION_H_INCLUDED
 
 #include <cmath>
 
@@ -59,7 +59,7 @@ struct LinearRectified : public Base
 /** tangens hyperbolicus activation */
 struct Tanh : public Base
 {
-	static const char * static_name() { return "tangens hyperbolicus"; }
+    static const char * static_name() { return "tangens_hyperbolicus"; }
 	virtual const char * name() const { return static_name(); }
 
 	template <typename Float>
@@ -223,4 +223,4 @@ struct ThresholdSigned : public Base
 
 
 
-#endif // MNN_ACTIVATION_H_INCLUDED
+#endif // MNNSRC_ACTIVATION_H_INCLUDED

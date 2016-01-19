@@ -11,14 +11,15 @@
 /** @page results
  *
  *  MNIST:
- *      784-500-500-10 PerceptronBias(TANH), last layer LINEAR
+ *      784-500-500-10 FeedForward(TANH), last layer LINEAR
  *                  ~2.3% (1.2% on training set) after ~11,000,000 steps
  *
- *
+ *  CIFAR:
+ *      ~53% with convolution layers..
  **/
 
 // use cifar instead of mnist
-//#define CIFAR
+#define CIFAR
 
 #include <fstream>
 #include <iomanip>
@@ -146,7 +147,7 @@ TrainMnist::Private::getImage(DataSet &set, uint32_t num) const
                 num, 0.4, MNN::rnd(-0.3, 0.3), MNN::rnd(0., 1.));
     //printStateAscii(image, trainSet.width(), trainSet.height());
     return image;
-#elif 1
+#elif 1 && !defined(CIFAR)
     return set.getTransformedImage(num, MNN::rnd(0.f, 4.f));
 #else
     const Float *image = set.getNoisyImage(
@@ -159,6 +160,8 @@ void TrainMnist::Private::saveAllLayers(const std::string& postfix)
 {
     std::cout << "saving '" << postfix << "'" << std::endl;
     net.saveTextFile(postfix + "_stack.txt");
+#if 0
+    // save individual layers
     for (size_t i=0; i<net.numLayer(); ++i)
     {
         std::stringstream str;
@@ -166,6 +169,7 @@ void TrainMnist::Private::saveAllLayers(const std::string& postfix)
             << "_" << net.layer(i)->numOut() << "h.txt";
         net.layer(i)->saveTextFile(str.str());
     }
+#endif
 }
 
 void TrainMnist::Private::createNet()
@@ -186,7 +190,7 @@ void TrainMnist::Private::createNet()
     // --- load autoencoder stack ----
     for (int i=0; i<5; ++i)
     {
-        auto l = new MNN::Perceptron<Float, MNN::Activation::Linear>(1, 1, 1., false);
+        auto l = new MNN::FeedForward<Float, MNN::Activation::Linear>(1, 1, 1., false);
         l->setMomentum(.5);
         net.add(l);
     }
@@ -194,7 +198,7 @@ void TrainMnist::Private::createNet()
     trainSet.scale(14, 14); testSet.scale(14, 14);
     if (net.numOut() != numOut)
     {
-        auto l = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut, 1.);
+        auto l = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut, 1.);
         l->setMomentum(.5);
         l->brainwash(0.1);
         net.add(l);
@@ -242,31 +246,31 @@ void TrainMnist::Private::createNet()
     typedef MNN::Activation::Tanh Act;
     //typedef MNN::Activation::Logistic Act;
     {
-        auto l = new MNN::PerceptronBias<Float, Act>(
+        auto l = new MNN::FeedForward<Float, Act>(
                     trainSet.width() * trainSet.height(), 100);
         l->setMomentum(.9);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.2);
-        //l->setLearnRateBias(.2);
+        l->setLearnRateBias(.2);
         net.add(l);
     }
     if (1)
     {
-        auto l = new MNN::PerceptronBias<Float, Act>(net.numOut(), 100);
+        auto l = new MNN::FeedForward<Float, Act>(net.numOut(), 100);
         l->setMomentum(.9);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
-        //l->setLearnRateBias(.2);
+        l->setLearnRateBias(.2);
         net.add(l);
     }
     // output layer
     {
-        auto l = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+        auto l = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut);
         l->setMomentum(.9);
         l->setSoftmax(true);
         //l->setDropOutMode(MNN::DO_TRAIN);
         //l->setDropOut(.5);
-        //l->setLearnRateBias(.2);
+        l->setLearnRateBias(.2);
         net.add(l);
     }
 
@@ -281,7 +285,7 @@ void TrainMnist::Private::createNet()
     typedef MNN::Activation::Tanh Act;
     //typedef MNN::Activation::Logistic Act;
     {
-        auto l = new MNN::PerceptronBias<Float, Act>(
+        auto l = new MNN::FeedForward<Float, Act>(
                     trainSet.width() * trainSet.height(), 500);
         l->loadTextFile("../nets/tanh/autoencoder-mnist-noise-500h.txt");
         l->setMomentum(.9);
@@ -292,7 +296,7 @@ void TrainMnist::Private::createNet()
         net.add(l);
     }
     {
-        auto l = new MNN::PerceptronBias<Float, Act>(net.numOut(), 500);
+        auto l = new MNN::FeedForward<Float, Act>(net.numOut(), 500);
         l->loadTextFile("../nets/tanh/autoencoder-mnist-noise-l2-500v-500h.txt");
         l->setMomentum(.9);
         l->setLearnRate(0.0);
@@ -303,7 +307,7 @@ void TrainMnist::Private::createNet()
     }
     // output layer
     {
-        auto l = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+        auto l = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut);
         l->brainwash();
         l->setMomentum(.9);
         l->setLearnRateBias(.1);
@@ -328,12 +332,13 @@ void TrainMnist::Private::createNet()
     // ----- deep convolution -------
 
     //typedef MNN::Activation::LinearRectified ConvAct;
-    typedef MNN::Activation::Linear ConvAct;
-    //typedef MNN::Activation::Tanh ConvAct;
+    //typedef MNN::Activation::Linear ConvAct;
+    typedef MNN::Activation::Tanh ConvAct;
 
     // first layer
     auto l1 = new MNN::Convolution<Float, ConvAct>(
-                    trainSet.width(), trainSet.height(), 5, 5);
+                    trainSet.width(), trainSet.height(), 1,
+                    5, 5, 6);
     l1->setMomentum(.9);
     net.add(l1);
     auto lprev = l1;
@@ -345,8 +350,8 @@ void TrainMnist::Private::createNet()
             || newSize < 2)
             break;
         auto lx = new MNN::Convolution<Float, ConvAct>(
-                   lprev->scanWidth(), lprev->scanHeight(),
-                   newSize, newSize);
+                   lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
+                   newSize, newSize, 1);
         lx->setMomentum(.9);
         if (lx->scanWidth() * lx->scanHeight() < 50)
         {
@@ -356,18 +361,18 @@ void TrainMnist::Private::createNet()
         net.add(lx);
         lprev = lx;
     }
-    auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
     net.add(lout);
-    //auto lout2 = new MNN::Perceptron<Float, MNN::Activation::Linear>(lout->numOut(), numOut, 0.1);
+    //auto lout2 = new MNN::FeedForward<Float, MNN::Activation::Linear>(lout->numOut(), numOut, 0.1);
     //lout2->setMomentum(.9);
     //net.add(lout2);
 
     learnRate = 0.001;
 
     net.brainwash(1.);
-#elif 1
 
+#elif 0
     // ----- convolution -------
 
     //typedef MNN::Activation::Linear ConvAct;
@@ -382,41 +387,102 @@ void TrainMnist::Private::createNet()
     l1->setMomentum(.9);
     net.add(l1);
     MNN::ConvolutionInterface* lprev = l1;
-    if (1)
-    {
-        auto l = new MNN::Convolution<Float, ConvAct>(
-                            lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
-                            2, 2,
-                            3, 3, 2);
-        l->setMomentum(.9);
-        net.add(l);
-        lprev = l;
-    }
     if (0)
     {
         auto l = new MNN::Convolution<Float, ConvAct>(
                             lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
                             1, 1,
-                            3, 3, 2);
+                            4, 4,
+                            2);
         l->setMomentum(.9);
         net.add(l);
         lprev = l;
     }
     if (0)
     {
-        auto l = new MNN::PerceptronBias<Float, ConvAct>(net.numOut(), 200);
+        auto l = new MNN::Convolution<Float, ConvAct>(
+                            lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
+                            2, 2,
+                            2, 2,
+                            2);
+        l->setMomentum(.9);
+        net.add(l);
+        lprev = l;
+    }
+    if (0)
+    {
+        auto l = new MNN::FeedForward<Float, MNN::Activation::Tanh>(net.numOut(), 200);
         l->setMomentum(.9);
         net.add(l);
     }
-    auto lout = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(
+    auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(
                 net.numOut(), numOut, 2.);
     lout->setMomentum(.9);
     lout->setSoftmax(true);
     net.add(lout);
 
-    learnRate = 0.0001;
+    learnRate = 0.001;
+
+    net.brainwash(2.);
+
+#if 0
+    net.loadTextFile("../nets/stacks/mnist_convolution_stack_e150.txt");
+    runInputApproximation();
+#endif
+
+#elif 1
+    // ----- convolution -------
+
+    //typedef MNN::Activation::Linear ConvAct;
+    //typedef MNN::Activation::LinearRectified ConvAct;
+    typedef MNN::Activation::Tanh ConvAct;
+
+    auto l1 = new MNN::Convolution<Float, ConvAct>(
+                    trainSet.width(), trainSet.height(), 1,
+                    2, 2,
+                    5, 5,
+                    32);
+    l1->setMomentum(.9);
+    net.add(l1);
+    MNN::ConvolutionInterface* lprev = l1;
+    if (1)
+    {
+        auto l = new MNN::Convolution<Float, ConvAct>(
+                            lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
+                            2, 2,
+                            3, 3,
+                            4);
+        l->setMomentum(.9);
+        net.add(l);
+        lprev = l;
+    }
+    if (1)
+    {
+        auto l = new MNN::Convolution<Float, ConvAct>(
+                            lprev->scanWidth(), lprev->scanHeight(), lprev->numOutputMaps(),
+                            2, 2,
+                            2, 2,
+                            1);
+        l->setMomentum(.9);
+        net.add(l);
+        lprev = l;
+    }
+    if (0)
+    {
+        auto l = new MNN::FeedForward<Float, MNN::Activation::Tanh>(net.numOut(), 200);
+        l->setMomentum(.9);
+        net.add(l);
+    }
+    auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(
+                net.numOut(), numOut, 2.);
+    lout->setMomentum(.9);
+    lout->setSoftmax(true);
+    net.add(lout);
+
+    learnRate = 0.001;
 
     net.brainwash(10.);
+
 
 #else
     // ---------- parallel convolution ------------
@@ -441,7 +507,7 @@ void TrainMnist::Private::createNet()
     }
     if (0)
     {
-        auto l1 = new MNN::Perceptron<Float, ConvAct>(trainSet.width()*trainSet.height(),
+        auto l1 = new MNN::FeedForward<Float, ConvAct>(trainSet.width()*trainSet.height(),
                                                       50, 0.1);
         l1->setMomentum(.9);
         stack->add(l1);
@@ -453,11 +519,11 @@ void TrainMnist::Private::createNet()
     // -- output layers --
     if (0)
     {
-        auto lout = new MNN::Perceptron<Float, MNN::Activation::Linear>(net.numOut(), 100, 0.1);
+        auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), 100, 0.1);
         lout->setMomentum(.9);
         net.add(lout);
     }
-    auto lout = new MNN::PerceptronBias<Float, MNN::Activation::Linear>(net.numOut(), numOut);
+    auto lout = new MNN::FeedForward<Float, MNN::Activation::Linear>(net.numOut(), numOut);
     lout->setMomentum(.9);
     lout->setSoftmax(true);
     net.add(lout);
@@ -754,13 +820,14 @@ void TrainMnist::Private::runInputApproximation()
 {
     // get a net copy
     auto net = this->net.getCopy();
-    if (auto d = dynamic_cast<MNN::SetDropOutInterface<Float>*>(net))
-        d->setDropOutMode(MNN::DO_PERFORM);
+    MNN::setDropOutMode(net, MNN::DO_PERFORM);
+    //MNN::setSoftmax(net, false);
+    net->info();
 
     GenerateInput<Float> gen(-0.1, 0.1);
 
     std::vector<Float> output(net->numOut());
-    prepareExpectedOutput(output, 8);
+    prepareExpectedOutput(output, 1);
     gen.setExpectedOutput(&output[0], output.size());
 
     const size_t numIt = 1000;

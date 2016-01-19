@@ -8,8 +8,8 @@
     <p>created 12/22/2015</p>
 */
 
-#ifndef MNN_RBM_H_INCLUDED
-#define MNN_RBM_H_INCLUDED
+#ifndef MNNSRC_RBM_H_INCLUDED
+#define MNNSRC_RBM_H_INCLUDED
 
 #include <cmath>
 #include <vector>
@@ -21,11 +21,17 @@
 
 namespace MNN {
 
+/** Restricted Boltzman Machine.
+
+    @note biases not implemented yet
+    */
 template <typename Float, class ActFunc = MNN::Activation::Logistic>
 class Rbm
         : public Layer<Float>
         , public GetMomentumInterface<Float>
         , public SetMomentumInterface<Float>
+        , public SetLearnRateInterface<Float>
+        , public GetLearnRateInterface<Float>
         , public ContrastiveDivergenceInterface<Float>
 {
     public:
@@ -45,6 +51,11 @@ class Rbm
 
     virtual Float momentum() const override { return momentum_; }
     virtual void setMomentum(Float m) override { momentum_ = m; }
+
+    // --------- LearnRateInterface ----------
+
+    virtual Float learnRate() const override { return learnRate_; }
+    virtual void setLearnRate(Float lr) override { learnRate_ = lr; }
 
     // ----------- nn interface --------------
 
@@ -82,7 +93,8 @@ class Rbm
 
     // ------- info --------------------------
 
-    virtual const char * id() const override { return "RBM"; }
+    static const char* static_id() { return "rbm"; }
+    virtual const char * id() const override { return static_id(); }
     virtual const char * name() const override { return "RBM"; }
     virtual size_t numParameters() const override { return weight_.size(); }
     virtual void info(std::ostream &out = std::cout,
@@ -135,5 +147,5 @@ protected:
 
 } // namespace MNN
 
-#endif // MNN_RBM_H_INCLUDED
+#endif // MNNSRC_RBM_H_INCLUDED
 

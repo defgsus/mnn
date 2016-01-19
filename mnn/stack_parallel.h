@@ -8,8 +8,8 @@
     <p>created 1/12/2016</p>
 */
 
-#ifndef MNN_STACK_PARALLEL_H
-#define MNN_STACK_PARALLEL_H
+#ifndef MNNSRC_STACK_PARALLEL_H
+#define MNNSRC_STACK_PARALLEL_H
 
 
 #include <cmath>
@@ -106,7 +106,8 @@ class StackParallel
 
     // ------- info --------------------------
 
-    virtual const char * id() const override { return "StackParallel"; }
+    static const char* static_id() { return "stack_parallel"; }
+    virtual const char * id() const override { return static_id(); }
     virtual const char * name() const override { return "StackParallel"; }
     virtual size_t numParameters() const override;
     virtual void info(std::ostream &out = std::cout,
@@ -135,5 +136,5 @@ protected:
 
 } // namespace MNN
 
-#endif // STACK_PARALLEL_H
+#endif // MNNSRC_STACK_PARALLEL_H
 

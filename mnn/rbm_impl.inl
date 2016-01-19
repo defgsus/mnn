@@ -53,12 +53,14 @@ MNN_TEMPLATE
 void MNN_RBM::serialize(std::ostream& s) const
 {
     s << id();
+    // activation
+    s << " " << ActFunc::static_name();
     // version
     s << " " << 1;
     // settings
     s << " " << learnRate_ << " " << momentum_ << " " << biasCell_;
     // dimension
-    s << " " << numIn() << " " << numOut();
+    s << " " << numIn() << " " << numOut() << "\n";
     // weights
     for (auto w : weight_)
         s << " " << w;
@@ -72,6 +74,8 @@ void MNN_RBM::deserialize(std::istream& s)
     if (str != id() && str != "Perceptron")
         MNN_EXCEPTION("Expected '" << id()
                       << "' in stream, found '" << str << "'");
+    // activation
+    s >> str;
     // version
     int ver;
     s >> ver;

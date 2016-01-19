@@ -56,7 +56,10 @@ void MNN_STACKPARALLEL::serialize(std::ostream& s) const
     s << " " << numLayer() << " ";
     // each layer
     for (auto l : layer_)
+    {
+        s << "\n";
         l->serialize(s);
+    }
 }
 
 MNN_TEMPLATE

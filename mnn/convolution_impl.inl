@@ -31,7 +31,9 @@ MNN_CONVOLUTION::Convolution(size_t inputWidth, size_t inputHeight, size_t input
                              size_t kernelWidth, size_t kernelHeight, size_t outputMaps,
                              Float learnRate)
     : learnRate_	(learnRate)
+    , learnRateBias_(.1)
     , momentum_     (.1)
+    , doBias_       (true)
 {
     resize(inputWidth, inputHeight, inputMaps,
            strideX, strideY, kernelWidth, kernelHeight, outputMaps);
@@ -69,6 +71,7 @@ Convolution<Float, ActFunc>& MNN_CONVOLUTION::operator = (const Layer<Float>& la
 
     input_ = net->input_;
     output_ = net->output_;
+    bias_ = net->bias_;
     weight_ = net->weight_;
     prevDelta_ = net->prevDelta_;
 
@@ -95,15 +98,23 @@ MNN_TEMPLATE
 void MNN_CONVOLUTION::serialize(std::ostream& s) const
 {
     s << id();
+    // activation
+    s << " " << ActFunc::static_name();
     // version
     s << " " << 1;
     // settings
-    s << " " << learnRate_ << " " << momentum_;
+    s << " " << learnRate_ << " " << momentum_ << " " << doBias_;
     // dimension
     s << " " << inputWidth_ << " " << inputHeight_
       << " " << kernelWidth_ << " " << kernelHeight_
       << " " << strideX_ << " " << strideY_
-      << " " << inputMaps_ << " " << parallelMaps_;
+      << " " << inputMaps_ << " " << parallelMaps_
+      << "\n";
+    // biases
+    if (doBias_)
+        for (auto b : bias_)
+            s << " " << b;
+    s << "\n";
     // weights
     for (auto w : weight_)
         s << " " << w;
@@ -117,6 +128,8 @@ void MNN_CONVOLUTION::deserialize(std::istream& s)
     if (str != id())
         MNN_EXCEPTION("Expected '" << id()
                       << "' in stream, found '" << str << "'");
+    // activation
+    s >> str;
     // version
     int ver;
     s >> ver;
@@ -124,11 +137,15 @@ void MNN_CONVOLUTION::deserialize(std::istream& s)
         MNN_EXCEPTION("Wrong version in " << name());
 
     // settings
-    s >> learnRate_ >> momentum_;
+    s >> learnRate_ >> momentum_ >> doBias_;
     // dimension
     size_t iw, ih, kw, kh, im, pm, sx, sy;
     s >> iw >> ih >> kw >> kh >> sx >> sy >> im >> pm;
     resize(iw, ih, im, sx, sy, kw, kh, pm);
+    // biases
+    if (doBias_)
+        for (auto& b : bias_)
+            s >> b;
     // weights
     for (auto& w : weight_)
         s >> w;
@@ -158,6 +175,7 @@ void MNN_CONVOLUTION::resize(size_t inputWidth, size_t inputHeight, size_t input
 
     input_.resize(inputWidth_ * inputHeight_ * inputMaps_);
     output_.resize(scanWidth_ * scanHeight_ * parallelMaps_ * inputMaps_);
+    bias_.resize(output_.size());
     weight_.resize(kernelWidth * kernelHeight * parallelMaps_ * inputMaps_);
     prevDelta_.resize(weight_.size());
 }
@@ -179,6 +197,9 @@ void MNN_CONVOLUTION::brainwash(Float amp)
         e = 0.0;
     for (auto& e : output_)
         e = 0.0;
+    // reset momentum
+    for (auto& m : prevDelta_)
+        m = 0.;
 
     if (kernelWidth_ == 0 || kernelHeight_ == 0)
         return;
@@ -188,9 +209,10 @@ void MNN_CONVOLUTION::brainwash(Float amp)
     for (auto& w : weight_)
         w = rnd(-f, f);
 
-    // reset momentum
-    for (auto& f : prevDelta_)
-        f = 0.;
+    // randomize biases
+    f = amp / output_.size();
+    for (auto& b : bias_)
+        b = rnd(-f, f);
 }
 
 
@@ -213,7 +235,17 @@ void MNN_CONVOLUTION::fprop(const Float * input, Float * output)
     {
         const size_t idx = (om * inputMaps_ + im);
 
-        ConvolutionMatrix::fprop<Float, ActFunc>(
+        if (doBias_)
+            ConvolutionMatrix::fprop_bias<Float, ActFunc>(
+                    &input_[im * mapSizeInput],
+                    &bias_[idx * mapSizeOutput],
+                    &output_[idx * mapSizeOutput],
+                    &weight_[idx * mapSizeWeight],
+                    inputWidth_, inputHeight_,
+                    kernelWidth_, kernelHeight_,
+                    strideX_, strideY_);
+        else
+            ConvolutionMatrix::fprop<Float, ActFunc>(
                     &input_[im * mapSizeInput],
                     &output_[idx * mapSizeOutput],
                     &weight_[idx * mapSizeWeight],
@@ -231,8 +263,6 @@ MNN_TEMPLATE
 void MNN_CONVOLUTION::bprop(const Float * error, Float * error_output,
                            Float global_learn_rate)
 {
-    global_learn_rate *= learnRate_;
-
     const size_t
             mapSizeInput = inputWidth_ * inputHeight_,
             mapSizeWeight = kernelWidth_ * kernelHeight_,
@@ -263,6 +293,11 @@ void MNN_CONVOLUTION::bprop(const Float * error, Float * error_output,
         }
     }
 
+    // adjust biases
+    if (doBias_)
+        for (size_t i=0; i<output_.size(); ++i)
+            bias_[i] += global_learn_rate * learnRateBias_ * outputErr_[i];
+
     // adjust weights
     if (weightBuffer_.size() != mapSizeWeight)
         weightBuffer_.resize(mapSizeWeight);
@@ -280,7 +315,7 @@ void MNN_CONVOLUTION::bprop(const Float * error, Float * error_output,
                     inputWidth_, inputHeight_,
                     kernelWidth_, kernelHeight_,
                     strideX_, strideY_,
-                    global_learn_rate, momentum_);
+                    global_learn_rate * learnRate_, momentum_);
     }
 }
 
@@ -303,45 +338,54 @@ void MNN_CONVOLUTION::info(std::ostream& out,
                            const std::string& pf) const
 {
     out <<         pf << "name       : " << name()
-        << "\n" << pf << "learnrate  : " << learnRate_
-        << "\n" << pf << "momentum   : " << momentum_
+        << "\n" << pf << "learnrate  : " << learnRate_;
+    if (doBias_)
+        out << " (bias " << learnRateBias_ << ")";
+    out << "\n" << pf << "momentum   : " << momentum_
         << "\n" << pf << "activation : " << ActFunc::static_name()
         << "\n" << pf << "inputs     : " << numIn() << " ("
                       << inputWidth_ << "x" << inputHeight_;
     if (inputMaps_ > 1)
         out << " x " << inputMaps_;
     out << ")";
-    if (strideX_ > 1 || strideY_ > 1)
-        out << "\n" << pf << "stride     : " << strideX_ << "x" << strideY_;
     out << "\n" << pf << "outputs    : " << numOut() << " ("
                       << scanWidth_ << "x" << scanHeight_;
     const size_t outMaps = numOutputMaps();
     if (outMaps > 1)
         out << " x " << outMaps;
     out << ")";
+    if (strideX_ > 1 || strideY_ > 1)
+        out << "\n" << pf << "stride     : " << strideX_ << "x" << strideY_;
     out << "\n" << pf << "kernel     : " << kernelWidth_ << "x" << kernelHeight_;
     if (outMaps > 1)
         out << " x " << outMaps;
     out << "\n" << pf << "parameters : " << numParameters()
-        << "\n";
+        << std::endl;
 }
 
 MNN_TEMPLATE
 void MNN_CONVOLUTION::dump(std::ostream &out) const
 {
     out << "inputs:";
-    for (auto e = input_.begin(); e != input_.end(); ++e)
-        out << " " << *e;
+    for (auto v : input_)
+        out << " " << v;
 
     out << "\noutputs:";
-    for (auto e = output_.begin(); e != output_.end(); ++e)
-        out << " " << *e;
+    for (auto v : output_)
+        out << " " << v;
+
+    if (doBias_)
+    {
+        out << "\nbiases:";
+        for (auto v : bias_)
+            out << " " << v;
+    }
 
     out << "\nweights:";
-    for (auto e = weight_.begin(); e != weight_.end(); ++e)
-        out << " " << *e;
+    for (auto v : weight_)
+        out << " " << v;
 
-    out << "\n";
+    out << std::endl;
 }
 
 

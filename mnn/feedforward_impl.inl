@@ -1,36 +1,37 @@
-/**	@file perceptronbias_impl.inl
+/** @file feedforward_impl.inl
 
-    @brief PerceptronBias implementation
+    @brief FeedForward layer implementation
 
-    <p>(c) 2015, stefan.berke@modular-audio-graphics.com</p>
+    <p>(c) 2016, stefan.berke@modular-audio-graphics.com</p>
     <p>All rights reserved</p>
 
-    <p>created 12/21/2015</p>
+    <p>created 1/19/2016</p>
 */
 
 #define MNN_TEMPLATE template <typename Float, class ActFunc>
-#define MNN_PERCEPTRONBIAS PerceptronBias<Float, ActFunc>
+#define MNN_FEEDFORWARD FeedForward<Float, ActFunc>
 
 MNN_TEMPLATE
-MNN_PERCEPTRONBIAS::PerceptronBias(size_t nrIn, size_t nrOut, Float learnRate)
+MNN_FEEDFORWARD::FeedForward(size_t nrIn, size_t nrOut, Float learnRate, bool doBias)
     : learnRate_	(learnRate)
     , learnRateBias_(.1)
     , momentum_     (.1)
+    , doBias_       (doBias)
     , doSoftmax_    (false)
 {
     resize(nrIn, nrOut);
 }
 
 MNN_TEMPLATE
-MNN_PERCEPTRONBIAS::~PerceptronBias()
+MNN_FEEDFORWARD::~FeedForward()
 {
 
 }
 
 MNN_TEMPLATE
-PerceptronBias<Float, ActFunc>& MNN_PERCEPTRONBIAS::operator = (const Layer<Float>& layer)
+FeedForward<Float, ActFunc>& MNN_FEEDFORWARD::operator = (const Layer<Float>& layer)
 {
-    auto net = dynamic_cast<const PerceptronBias<Float, ActFunc>*>(&layer);
+    auto net = dynamic_cast<const FeedForward<Float, ActFunc>*>(&layer);
     if (!net)
         return *this;
 
@@ -44,6 +45,7 @@ PerceptronBias<Float, ActFunc>& MNN_PERCEPTRONBIAS::operator = (const Layer<Floa
     learnRateBias_ = net->learnRateBias_;
     momentum_ = net->momentum_;
     doSoftmax_ = net->doSoftmax_;
+    doBias_ = net->doBias_;
 
     return *this;
 }
@@ -52,50 +54,54 @@ PerceptronBias<Float, ActFunc>& MNN_PERCEPTRONBIAS::operator = (const Layer<Floa
 // ---------------- io -------------------
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::serialize(std::ostream& s) const
+void MNN_FEEDFORWARD::serialize(std::ostream& s) const
 {
     s << id();
+    // activation
+    s << " " << ActFunc::static_name();
     // version
-    s << " " << 2;
+    s << " " << 1;
     // settings
-    s << " " << learnRate_ << " " << momentum_;
-    // v2
-    s << doSoftmax_;
+    s << " " << learnRate_ << " " << momentum_
+      << " " << doBias_ << " " << doSoftmax_ << "\n";
     // dimension
-    s << " " << numIn() << " " << numOut();
+    s << " " << input_.size() << " " << output_.size() << "\n";
     // bias
-    for (auto b : bias_)
-        s << " " << b;
+    if (doBias_)
+        for (auto b : bias_)
+            s << " " << b;
+    s << "\n";
     // weights
     for (auto w : weight_)
         s << " " << w;
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::deserialize(std::istream& s)
+void MNN_FEEDFORWARD::deserialize(std::istream& s)
 {
     std::string str;
     s >> str;
     if (str != id())
         MNN_EXCEPTION("Expected '" << id()
                       << "' in stream, found '" << str << "'");
+    // activation
+    s >> str;
     // version
     int ver;
     s >> ver;
-    if (ver > 2)
+    if (ver > 1)
         MNN_EXCEPTION("Wrong version in " << name());
 
     // settings
-    s >> learnRate_ >> momentum_;
-    if (ver > 2)
-        s >> doSoftmax_;
+    s >> learnRate_ >> momentum_ >> doBias_ >> doSoftmax_;
     // dimension
     size_t numIn, numOut;
     s >> numIn >> numOut;
     resize(numIn, numOut);
     // bias
-    for (auto& b : bias_)
-        s >> b;
+    if (doBias_)
+        for (auto& b : bias_)
+            s >> b;
     // weights
     for (auto& w : weight_)
         s >> w;
@@ -105,7 +111,7 @@ void MNN_PERCEPTRONBIAS::deserialize(std::istream& s)
 // ----------- nn interface --------------
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::resize(size_t nrIn, size_t nrOut)
+void MNN_FEEDFORWARD::resize(size_t nrIn, size_t nrOut)
 {
     input_.resize(nrIn);
     output_.resize(nrOut);
@@ -115,7 +121,7 @@ void MNN_PERCEPTRONBIAS::resize(size_t nrIn, size_t nrOut)
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::grow(size_t nrIn, size_t nrOut, Float randomDev)
+void MNN_FEEDFORWARD::grow(size_t nrIn, size_t nrOut, Float randomDev)
 {
     if (nrIn < numIn() || nrOut < numOut())
         return;
@@ -164,30 +170,18 @@ void MNN_PERCEPTRONBIAS::grow(size_t nrIn, size_t nrOut, Float randomDev)
     prevDelta_.resize(nrIn * nrOut); for (auto&f : prevDelta_) f = 0;
 }
 
-MNN_TEMPLATE
-size_t MNN_PERCEPTRONBIAS::numIn() const
-{
-    return input_.size();
-}
 
 MNN_TEMPLATE
-size_t MNN_PERCEPTRONBIAS::numOut() const
-{
-    return output_.size();
-}
-
-
-MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::brainwash(Float amp)
+void MNN_FEEDFORWARD::brainwash(Float amp)
 {
     // reset in/out
     for (auto& f : input_)
         f = 0.;
     for (auto& f : output_)
         f = 0.;
-    // reset cells bias
-    for (auto& f : bias_)
-        f = 0.;
+    // reset momentum
+    for (auto& m : prevDelta_)
+        m = 0.;
 
     if (input_.empty() || output_.empty())
         return;
@@ -197,25 +191,30 @@ void MNN_PERCEPTRONBIAS::brainwash(Float amp)
     for (auto e = weight_.begin(); e != weight_.end(); ++e)
         *e = rnd(-f, f);
 
-    // reset momentum
-    for (auto& f : prevDelta_)
-        f = 0.;
+    // randomize bias
+    f = amp / output_.size();
+    for (auto& b : bias_)
+        b = rnd(-f, f);
 }
 
 
 // ----------- propagation ---------------
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
+void MNN_FEEDFORWARD::fprop(const Float * input, Float * output)
 {
     // copy to internal data
     for (auto i = input_.begin(); i != input_.end(); ++i, ++input)
         *i = *input;
 
-
     // propagate
-    DenseMatrix::fprop_bias<Float, ActFunc>(
+    if (doBias_)
+        DenseMatrix::fprop_bias<Float, ActFunc>(
                 &input_[0], &output_[0], &bias_[0], &weight_[0],
+                input_.size(), output_.size());
+    else
+        DenseMatrix::fprop<Float, ActFunc>(
+                &input_[0], &output_[0], &weight_[0],
                 input_.size(), output_.size());
 
     if (doSoftmax_)
@@ -227,15 +226,10 @@ void MNN_PERCEPTRONBIAS::fprop(const Float * input, Float * output)
 
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
+void MNN_FEEDFORWARD::bprop(const Float * error, Float * error_output,
                            Float learn_rate)
 {
-    learn_rate *= learnRate_;
-
-    // this version first calculates error derivatives
-    // and passes these through to previous layers
-#if 1
-    // get error derivative
+    // calculate error derivative
     if (errorDer_.size() != output_.size())
         errorDer_.resize(output_.size());
     for (size_t i=0; i<output_.size(); ++i)
@@ -250,56 +244,34 @@ void MNN_PERCEPTRONBIAS::bprop(const Float * error, Float * error_output,
     if (learn_rate > 0.)
     {
         // gradient descent on weights
-        DenseMatrix::gradient_descent<Float, Activation::Linear>(
+        if (learnRate_ > 0.)
+            DenseMatrix::gradient_descent<Float, Activation::Linear>(
                     &input_[0], &output_[0], &errorDer_[0],
                     &weight_[0], &prevDelta_[0],
                     input_.size(), output_.size(),
-                    learn_rate,
+                    learn_rate * learnRate_,
                     momentum_);
 
         // gradient descent on biases
-        if (learnRateBias_ > 0.)
-        DenseMatrix::gradient_descent_bias<Float, Activation::Linear>(
+        if (doBias_ && learnRateBias_ > 0.)
+            DenseMatrix::gradient_descent_bias<Float, Activation::Linear>(
                     &output_[0], &errorDer_[0], &bias_[0],
                     output_.size(),
                     learn_rate * learnRateBias_);
     }
-
-    // this version passes errors through to previous
-    // layers and uses derivatives for gradient descent
-#else
-    // pass error through
-    if (error_output)
-        DenseMatrix::bprop<Float>(
-                error_output, error, &weight_[0],
-                input_.size(), output_.size());
-
-    if (learn_rate > 0.)
-    {
-        // gradient descent on weights
-        DenseMatrix::gradient_descent<Float, ActFunc>(
-                    &input_[0], &output_[0], error,
-                    &weight_[0], &prevDelta_[0],
-                    input_.size(), output_.size(),
-                    learn_rate,
-                    momentum_);
-
-        // gradient descent on biases
-        if (learnRateBias_ > 0.)
-        DenseMatrix::gradient_descent_bias<Float, ActFunc>(
-                    &output_[0], error, &bias_[0],
-                    output_.size(),
-                    learn_rate * learnRateBias_);
-    }
-#endif
 }
 
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::reconstruct(const Float* input, Float* reconstruction)
+void MNN_FEEDFORWARD::reconstruct(const Float* input, Float* reconstruction)
 {
     // get code for input
-    DenseMatrix::fprop<Float, ActFunc>(
+    if (doBias_)
+        DenseMatrix::fprop_bias<Float, ActFunc>(
+                input, &output_[0], &bias_[0], &weight_[0],
+                input_.size(), output_.size());
+    else
+        DenseMatrix::fprop<Float, ActFunc>(
                 input, &output_[0], &weight_[0],
                 input_.size(), output_.size());
 
@@ -310,7 +282,7 @@ void MNN_PERCEPTRONBIAS::reconstruct(const Float* input, Float* reconstruction)
 }
 
 MNN_TEMPLATE
-Float MNN_PERCEPTRONBIAS::reconstructionTraining(
+Float MNN_FEEDFORWARD::reconstructionTraining(
             const Float *dec_input, const Float* true_input,
             Float global_learn_rate)
 {
@@ -327,9 +299,17 @@ Float MNN_PERCEPTRONBIAS::reconstructionTraining(
         reconOutput_.resize(output_.size());
 
     // get code for input
-    DenseMatrix::fprop_bias<Float, ActFunc>(
+    if (doBias_)
+        DenseMatrix::fprop_bias<Float, ActFunc>(
                 &input_[0], &output_[0], &bias_[0], &weight_[0],
                 input_.size(), output_.size());
+    else
+        DenseMatrix::fprop<Float, ActFunc>(
+                &input_[0], &output_[0], &weight_[0],
+                input_.size(), output_.size());
+
+    if (doSoftmax_)
+        apply_softmax(&output_[0], output_.size());
 
     // get reconstruction from code
     DenseMatrix::fprop_transpose<Float, ActFunc>(
@@ -371,8 +351,9 @@ Float MNN_PERCEPTRONBIAS::reconstructionTraining(
                 global_learn_rate * learnRate_,
                 momentum_);
 
-    // gradient descent using code error
-    DenseMatrix::gradient_descent_bias<Float, Activation::Linear>(
+    // gradient descent on biases using code error
+    if (doBias_)
+        DenseMatrix::gradient_descent_bias<Float, Activation::Linear>(
                 &output_[0], &reconOutput_[0], &bias_[0],
                 output_.size(),
                 global_learn_rate * learnRateBias_);
@@ -385,7 +366,7 @@ Float MNN_PERCEPTRONBIAS::reconstructionTraining(
 // ----------- info -----------------------
 
 MNN_TEMPLATE
-Float MNN_PERCEPTRONBIAS::getWeightAverage() const
+Float MNN_FEEDFORWARD::getWeightAverage() const
 {
     Float a = 0.;
     for (auto w : weight_)
@@ -396,40 +377,45 @@ Float MNN_PERCEPTRONBIAS::getWeightAverage() const
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::info(std::ostream &out, const std::string& pf) const
+void MNN_FEEDFORWARD::info(std::ostream &out, const std::string& pf) const
 {
     out <<         pf << "name       : " << name()
-        << "\n" << pf << "learnrate  : " << learnRate_ << " (bias: " << learnRateBias_ << ")"
-        << "\n" << pf << "momentum   : " << momentum_
+        << "\n" << pf << "learnrate  : " << learnRate_;
+    if (doBias_)
+        out << " (bias: " << learnRateBias_ << ")";
+    out << "\n" << pf << "momentum   : " << momentum_
         << "\n" << pf << "activation : " << ActFunc::static_name();
     if (doSoftmax_)
         out << " (softmax)";
     out << "\n" << pf << "inputs     : " << numIn()
         << "\n" << pf << "outputs    : " << numOut()
         << "\n" << pf << "parameters : " << numParameters()
-        << "\n";
+        << std::endl;
 }
 
 MNN_TEMPLATE
-void MNN_PERCEPTRONBIAS::dump(std::ostream &out) const
+void MNN_FEEDFORWARD::dump(std::ostream &out) const
 {
     out << "inputs:";
-    for (auto e = input_.begin(); e != input_.end(); ++e)
-        out << " " << *e;
-
-    out << "\nbias:";
-    for (auto e = bias_.begin(); e != bias_.end(); ++e)
-        out << " " << *e;
+    for (auto v : input_)
+        out << " " << v;
 
     out << "\noutputs:";
-    for (auto e = output_.begin(); e != output_.end(); ++e)
-        out << " " << *e;
+    for (auto v : output_)
+        out << " " << v;
+
+    if (doBias_)
+    {
+        out << "\nbias:";
+        for (auto v : bias_)
+            out << " " << v;
+    }
 
     out << "\nweights:";
-    for (auto e = weight_.begin(); e != weight_.end(); ++e)
-        out << " " << *e;
+    for (auto v : weight_)
+        out << " " << v;
 
-    out << "\n";
+    out << std::endl;
 }
 
 
@@ -438,5 +424,7 @@ void MNN_PERCEPTRONBIAS::dump(std::ostream &out) const
 
 
 #undef MNN_TEMPLATE
-#undef MNN_PERCEPTRONBIAS
+#undef MNN_FEEDFORWARD
+
+
 

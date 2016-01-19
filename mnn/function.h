@@ -5,8 +5,8 @@
 	@author def.gsus-
 	@version 2012/10/15 started
 */
-#ifndef MNN_FUNCTION_H_INCLUDED
-#define MNN_FUNCTION_H_INCLUDED
+#ifndef MNNSRC_FUNCTION_H_INCLUDED
+#define MNNSRC_FUNCTION_H_INCLUDED
 
 #include <cstddef>
 #include <cinttypes>
@@ -379,6 +379,32 @@ struct ConvolutionMatrix
         }
     }
 
+    /** Same as fprop() with bias for each output */
+    template <typename Float, class Act>
+    static void fprop_bias(const Float* input, const Float* bias,
+                      Float* output, const Float* kernel,
+                      size_t inputWidth, size_t inputHeight,
+                      size_t kernelWidth, size_t kernelHeight,
+                      size_t strideX = 1, size_t strideY = 1)
+    {
+        const size_t
+                scanWidth = (inputWidth - kernelWidth + 1),
+                scanHeight = (inputHeight - kernelHeight + 1);
+        for (size_t sy = 0; sy < scanHeight; sy += strideY)
+        for (size_t sx = 0; sx < scanWidth; sx += strideX, ++output, ++bias)
+        {
+            const Float* w = kernel;
+            Float sum = *bias;
+            for (size_t iy = 0; iy < kernelHeight; ++iy)
+            {
+                const Float* inp = &input[(sy + iy) * inputWidth + sx];
+                for (size_t ix = 0; ix < kernelWidth; ++ix, ++w, ++inp)
+                    sum += *w * *inp;
+            }
+            *output = Act::activation(sum);
+        }
+    }
+
     /** Back-propagate @p output into @p input, using the weights in @p kernel.
         @param input has size @p inputWidth * @p inputHeight
         @param output has the size ((@p inputWidth - @p kernelWidth) / @p strideX + 1)
@@ -475,4 +501,4 @@ struct ConvolutionMatrix
 
 } // namespace MNN
 
-#endif // MNN_FUNCTION_H_INCLUDED
+#endif // MNNSRC_FUNCTION_H_INCLUDED
