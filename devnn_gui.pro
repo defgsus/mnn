@@ -22,7 +22,11 @@ SOURCES += \
     gui/labwindow.cpp \
     gui/statedisplay.cpp \
     gui/trainthread.cpp \
-    gui/analyzewindow.cpp
+    gui/analyzewindow.cpp \
+    image.cpp \
+    gui/imagelearnwindow.cpp \
+    imagelearner.cpp \
+    imagelearnthread.cpp
 
 HEADERS += \
     trainposition.h \
@@ -35,7 +39,11 @@ HEADERS += \
     gui/statedisplay.h \
     gui/rbm_stack.h \
     gui/trainthread.h \
-    gui/analyzewindow.h
+    gui/analyzewindow.h \
+    image.h \
+    gui/imagelearnwindow.h \
+    imagelearner.h \
+    imagelearnthread.h
 
 OTHER_FILES += \
     .gitignore \

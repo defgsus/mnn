@@ -182,8 +182,8 @@ void MNN_STACKSERIAL::bprop(const Float * error, Float * error_output,
 MNN_TEMPLATE
 void MNN_STACKSERIAL::info(std::ostream &out, const std::string& pf) const
 {
-    out <<         pf << "name      : " << name()
-        << "\n" << pf << "layout    : ";
+    out <<         pf << "name       : " << name()
+        << "\n" << pf << "layout     : ";
     if (Stack<Float>::layer_.empty())
         out << "empty";
     else
@@ -192,7 +192,8 @@ void MNN_STACKSERIAL::info(std::ostream &out, const std::string& pf) const
         for (auto l : Stack<Float>::layer_)
             out << " - " << l->numOut();
     }
-    out << "\n" << pf << "parameters: " << Stack<Float>::numParameters()
+    out << "\n" << pf << "parameters : " << Stack<Float>::numParameters()
+        << "\n" << pf << "weights av : " << Stack<Float>::getWeightAverage()
         << "\n";
 	size_t k = 1;
     for (auto l = Stack<Float>::layer_.begin(); l != Stack<Float>::layer_.end(); ++l, ++k)

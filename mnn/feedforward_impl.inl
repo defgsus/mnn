@@ -390,6 +390,7 @@ void MNN_FEEDFORWARD::info(std::ostream &out, const std::string& pf) const
     out << "\n" << pf << "inputs     : " << numIn()
         << "\n" << pf << "outputs    : " << numOut()
         << "\n" << pf << "parameters : " << numParameters()
+        << "\n" << pf << "weights av : " << getWeightAverage()
         << std::endl;
 }
 

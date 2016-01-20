@@ -186,8 +186,8 @@ void MNN_STACKPARALLEL::bprop(const Float * error, Float * error_output,
 MNN_TEMPLATE
 void MNN_STACKPARALLEL::info(std::ostream &out, const std::string& pf) const
 {
-    out <<         pf << "name      : " << name()
-        << "\n" << pf << "layout    : ";
+    out <<         pf << "name       : " << name()
+        << "\n" << pf << "layout     : ";
     if (Stack<Float>::layer_.empty())
         out << "empty";
     else
@@ -197,7 +197,8 @@ void MNN_STACKPARALLEL::info(std::ostream &out, const std::string& pf) const
             out << " | " << Stack<Float>::layer_[i]->numIn()
                     << "-" << Stack<Float>::layer_[i]->numOut();
     }
-    out << "\n" << pf << "parameters: " << Stack<Float>::numParameters()
+    out << "\n" << pf << "parameters : " << Stack<Float>::numParameters()
+        << "\n" << pf << "weights av : " << Stack<Float>::getWeightAverage()
         << "\n";
     size_t k = 1;
     for (auto l = Stack<Float>::layer_.begin(); l != Stack<Float>::layer_.end(); ++l, ++k)

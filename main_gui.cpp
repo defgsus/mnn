@@ -12,12 +12,13 @@
 
 #include "gui/labwindow.h"
 #include "gui/analyzewindow.h"
+#include "gui/imagelearnwindow.h"
 
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
-    auto mainwin = new AnalyzeWindow();
+    auto mainwin = new ImageLearnWindow();
     mainwin->show();
 
     return app.exec();

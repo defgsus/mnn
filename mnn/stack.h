@@ -24,6 +24,8 @@ class Stack
         : public Layer<Float>
         , public SetMomentumInterface<Float>
         , public SetDropOutInterface<Float>
+        , public SetLearnRateInterface<Float>
+        , public SetLearnRateBiasInterface<Float>
         , public SetSoftmaxInterface
 {
 public:
@@ -78,6 +80,16 @@ public:
         { return layer_.empty() ? 0 : layer_.front()->weights(); }
     virtual void setWeight(size_t input, size_t output, Float w) override
         { if (!layer_.empty()) layer_.front()->setWeight(input, output, w); }
+
+    // --------- LearnRateInterface ----------
+
+    /** Sets learnrate for ALL layers */
+    virtual void setLearnRate(Float lr) override;
+
+    // --------- LearnRateBiasInterface ------
+
+    /** Sets bias learnrate for ALL layers */
+    virtual void setLearnRateBias(Float lr) override;
 
     // --------- MomentumInterface -----------
 

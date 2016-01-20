@@ -47,6 +47,9 @@ AnalyzeWindow::AnalyzeWindow(QWidget* parent, Qt::WindowFlags flags)
     : QMainWindow(parent, flags)
     , p_        (new Private(this))
 {
+    setWindowTitle(tr("analyse"));
+    setMinimumSize(480, 320);
+
     p_->createWidgets();
 }
 

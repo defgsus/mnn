@@ -15,8 +15,28 @@
 #include <QImage>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
+#include <QComboBox>
+#include <QMouseEvent>
 
 #include "statedisplay.h"
+
+namespace {
+
+class ClickLabel : public QLabel
+{
+    StateDisplay* p;
+public:
+    ClickLabel(StateDisplay*parent) : QLabel(parent), p(parent) { }
+
+    void mousePressEvent(QMouseEvent* e) override
+    {
+        int zoom = p->zoom();
+        emit p->clicked(e->x() / zoom, e->y() / zoom);
+    }
+};
+
+} // namespace
+
 
 struct StateDisplay::Private
 {
@@ -24,6 +44,7 @@ struct StateDisplay::Private
         : p                 (p)
         , numInstances      (1)
         , instancesPerRow   (0)
+        , mode              (DM_UNSIGNED)
     {
     }
 
@@ -39,15 +60,17 @@ struct StateDisplay::Private
 
     QSize size;
     size_t numInstances, instancesPerRow;
+    DisplayMode mode;
 
     const float * ptr_float;
     const double * ptr_double;
     std::vector<float> states;
 
     QScrollArea * scrollArea;
-    QLabel * labelImg;
+    ClickLabel * labelImg;
     QSpinBox * spinZoom;
     QDoubleSpinBox * spinAmp;
+    QComboBox * comboMode;
 };
 
 StateDisplay::StateDisplay(QWidget *parent)
@@ -65,6 +88,8 @@ StateDisplay::~StateDisplay()
 }
 
 QSize StateDisplay::stateSize() const { return p_->size; }
+int StateDisplay::zoom() const { return p_->spinZoom->value(); }
+
 void StateDisplay::setStateSize(size_t w, size_t h, size_t instances) { p_->setSize(QSize(w, h), instances); }
 void StateDisplay::setInstancesPerRow(size_t w) { p_->instancesPerRow = w; }
 void StateDisplay::setStateSize(const QSize& s, size_t instances) { p_->setSize(s, instances); }
@@ -80,8 +105,16 @@ void StateDisplay::Private::createWidgets()
         scrollArea = new QScrollArea(p);
         lv->addWidget(scrollArea);
 
-        labelImg = new QLabel(p);
+        labelImg = new ClickLabel(p);
         scrollArea->setWidget(labelImg);
+
+        comboMode = new QComboBox(p);
+        comboMode->addItem(tr("unsigned"));
+        comboMode->addItem(tr("signed"));
+        comboMode->addItem(tr("mean 0.5"));
+        connect(comboMode, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+                [=](int index){ mode = (DisplayMode)index; updateImage(); });
+        lv->addWidget(comboMode);
 
         auto lh = new QHBoxLayout();
         lv->addLayout(lh);
@@ -102,9 +135,10 @@ void StateDisplay::Private::createWidgets()
             lh->addWidget(spinAmp);
 }
 
-void StateDisplay::setZoom(int level)
+void StateDisplay::setZoom(int level) { p_->spinZoom->setValue(level); }
+void StateDisplay::setDisplayMode(DisplayMode m)
 {
-    p_->spinZoom->setValue(level);
+    p_->comboMode->setCurrentIndex(m);
 }
 
 void StateDisplay::Private::setSize(const QSize& s, size_t numI)
@@ -198,13 +232,24 @@ void StateDisplay::Private::updateImage()
     int ix = 0, iy = 0;
     for (size_t i = 0; i < numInstances; ++i)
     {
-        if (0)
+        if (mode == DM_UNSIGNED)
+        {
+            for (int y = 0; y < size.height(); ++y)
+            for (int x = 0; x < size.width(); ++x, ++s)
+            {
+                int si = std::min(255, std::max(0, int(*s * 255 * amp)));
+                img.setPixel(ix * size.width() + x,
+                             iy * size.height() + y,
+                             qRgb(si, si, si));
+            }
+        }
+        else if (mode == DM_SIGNED)
         {
             for (int y = 0; y < size.height(); ++y)
             for (int x = 0; x < size.width(); ++x, ++s)
             {
                 int si = std::min(255, std::abs(int(*s * 255 * amp)));
-                int si0 = si * 0.9;
+                int si0 = si * 0.8;
                 img.setPixel(ix * size.width() + x,
                              iy * size.height() + y,
                              *s > 0 ? qRgb(si, si, si0) : qRgb(si0, si0, si));

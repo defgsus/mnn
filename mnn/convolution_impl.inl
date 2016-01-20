@@ -360,6 +360,7 @@ void MNN_CONVOLUTION::info(std::ostream& out,
     if (outMaps > 1)
         out << " x " << outMaps;
     out << "\n" << pf << "parameters : " << numParameters()
+        << "\n" << pf << "weights av : " << getWeightAverage()
         << std::endl;
 }
 

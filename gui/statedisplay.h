@@ -19,14 +19,30 @@ class StateDisplay : public QWidget
 {
     Q_OBJECT
 public:
+
+    enum DisplayMode
+    {
+        DM_UNSIGNED,
+        DM_SIGNED,
+        DM_GRAY
+    };
+
     explicit StateDisplay(QWidget *parent = 0);
     ~StateDisplay();
 
     QSize stateSize() const;
+    int zoom() const;
+
+signals:
+
+    /** Emitted when clicked on image.
+        Coordinates are in unzoomed pixels within the state data */
+    void clicked(int x, int y);
 
 public slots:
 
     void setZoom(int level);
+    void setDisplayMode(DisplayMode);
 
     /** Sets the size/dimension of the display.
         Any pointers given to setStates are dropped */
@@ -44,7 +60,7 @@ public slots:
 
     /** Rereads the states previously from the pointer
         previously given to setStates() */
-    void updateStates();
+    void updateStates();    
 
 private:
     struct Private;

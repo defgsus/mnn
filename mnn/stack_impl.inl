@@ -136,6 +136,22 @@ void MNN_STACK::setMomentum(Float m)
 }
 
 MNN_TEMPLATE
+void MNN_STACK::setLearnRate(Float m)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetLearnRateInterface<Float>*>(l))
+            d->setLearnRate(m);
+}
+
+MNN_TEMPLATE
+void MNN_STACK::setLearnRateBias(Float m)
+{
+    for (auto l : layer_)
+        if (auto d = dynamic_cast<SetLearnRateBiasInterface<Float>*>(l))
+            d->setLearnRateBias(m);
+}
+
+MNN_TEMPLATE
 void MNN_STACK::setSoftmax(bool e)
 {
     for (auto l : layer_)

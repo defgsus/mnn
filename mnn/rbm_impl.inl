@@ -425,6 +425,7 @@ void MNN_RBM::info(std::ostream &out, const std::string& pf) const
             << (biasCell_ ? " (+1 bias)" : "")
         << "\n" << pf << "outputs    : " << numOut()
         << "\n" << pf << "parameters : " << numParameters()
+        << "\n" << pf << "weights av : " << getWeightAverage()
         << "\n";
 }
 
