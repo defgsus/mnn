@@ -35,7 +35,6 @@ public:
 
 	// ----------- nn interface --------------
 
-
     // ------- Stack interface ---------------
 
     virtual void updateLayers() override;

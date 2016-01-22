@@ -21,6 +21,7 @@
 #include "rbm.h"
 #include "stack_parallel.h"
 #include "stack_serial.h"
+#include "stack_split.h"
 
 namespace MNN {
 

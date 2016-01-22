@@ -5,7 +5,8 @@ SOURCES += \
     mnn/stack_parallel_impl.inl \
     mnn/feedforward_impl.inl \
     $$PWD/factory_impl.inl \
-    $$PWD/stack_impl.inl
+    $$PWD/stack_impl.inl \
+    $$PWD/stack_split_impl.inl
 
 HEADERS += \
     mnn/activation.h \
@@ -21,4 +22,5 @@ HEADERS += \
     mnn/feedforward.h \
     $$PWD/factory.h \
     $$PWD/stack.h \
-    $$PWD/refcounted.h
+    $$PWD/refcounted.h \
+    $$PWD/stack_split.h

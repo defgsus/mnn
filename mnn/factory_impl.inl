@@ -53,6 +53,9 @@ Layer<Float>* Factory<Float>::createLayer(const std::string& id)
     if (id == StackParallel<Float>::static_id())
         return new StackParallel<Float>();
 
+    if (id == StackSplit<Float>::static_id())
+        return new StackSplit<Float>();
+
     return 0;
 }
 

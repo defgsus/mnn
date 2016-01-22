@@ -29,13 +29,17 @@ public slots:
 
     void loadImage();
     void loadImage(const QString& fn);
+    void loadCorruptImage();
+    void loadCorruptImage(const QString& fn);
 
+    void newNetwork();
     void loadNetwork();
     void loadNetwork(const QString& fn);
     void saveNetwork();
     void saveNetwork(const QString& fn);
 
     void renderImageReconstruction();
+    void renderOrgImageReconstruction();
 
     void startThread();
     void stopThread();

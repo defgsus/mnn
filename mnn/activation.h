@@ -122,6 +122,20 @@ struct Logistic10 : public Base
         { return state * (Float(1.) - state) * error * Float(10); }
 };
 
+/** gaussian activation - NOT COMPATIBLE YET */
+struct Gaussian : public Base
+{
+    static const char * static_name() { return "gaussian"; }
+    virtual const char * name() const { return static_name(); }
+
+    template <typename Float>
+    static Float activation(Float in) { return std::exp(-in * in); }
+
+    template <typename Float>
+    static Float derivative(Float error, Float state, Float preActivationState)
+        { return Float(-2.) * preActivationState * state * error; }
+};
+
 
 /** sine activation */
 struct Sine : public Base

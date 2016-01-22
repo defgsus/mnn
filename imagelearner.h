@@ -34,12 +34,21 @@ public:
     const Float* patchExpect() const;
     const Float* patchError() const;
 
+    MNN::Layer<Float>* net() const;
+
+    /** Returns the number of training steps
+        aproximately needed for the whole image */
+    size_t stepsPerImage() const;
+
     /** Sets the network to use. Adds reference */
     void setNet(MNN::Layer<Float>* net);
     /** Sets the image to learn. Adds reference */
     void setImage(Image* img);
+    /** Sets the corrupted image to reconstruct. Adds reference */
+    void setCorruptedImage(Image* img);
 
     void trainStep(int iterations);
+    size_t epoch() const;
 
     /** Selects an input patch from the current image
         and propagtes through network.
@@ -48,9 +57,15 @@ public:
         @p x and @p y are clamped to image boundaries. */
     void fpropPatch(int x, int y);
 
-    /** Rerender the current image through the network into dst.
+    /** Render the current image through the network into dst.
         The image is resized appropriately. */
     void renderImageReconstruction(Image* dst);
+
+    /** Render the @p src image through the given network into dst.
+        The @p dst image is resized appropriately. */
+    static void renderImageReconstruction(
+            MNN::Layer<Float>* net, const QSize& sizeIn, const QSize& sizeOut,
+            Image* src, Image* dst);
 
     std::string infoString() const;
 

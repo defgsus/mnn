@@ -8,6 +8,8 @@
     <p>created 1/20/2016</p>
 */
 
+#include <sstream>
+
 #include <QMutex>
 #include <QMutexLocker>
 #include <QTime>
@@ -22,6 +24,8 @@ struct ImageLearnThread::Private
         : p         (p)
         , learner   (new ImageLearner)
         , imageRecon(0)
+        , imageReconSrc(0)
+        , fps       (0)
     {
 
     }
@@ -36,9 +40,10 @@ struct ImageLearnThread::Private
     ImageLearnThread* p;
     QMutex mutex;
     ImageLearner* learner;
-    Image* imageRecon;
+    Image* imageRecon, *imageReconSrc;
     volatile bool doStop;
     std::string infoStr;
+    float fps;
 };
 
 ImageLearnThread::ImageLearnThread(QObject* parent)
@@ -80,9 +85,28 @@ void ImageLearnThread::setImage(Image *img)
     p_->learner->setImage(img);
 }
 
+void ImageLearnThread::setImageCorrupt(Image *img)
+{
+    QMutexLocker lock(&p_->mutex);
+    p_->learner->setCorruptedImage(img);
+}
+
+void ImageLearnThread::setImages(Image *img, Image* cor)
+{
+    QMutexLocker lock(&p_->mutex);
+    p_->learner->setImage(img);
+    p_->learner->setCorruptedImage(cor);
+}
+
 void ImageLearnThread::renderReconstruction(Image *img)
 {
     p_->imageRecon = img;
+}
+
+void ImageLearnThread::renderReconstruction(Image* src, Image *dst)
+{
+    p_->imageReconSrc = src;
+    p_->imageRecon = dst;
 }
 
 void ImageLearnThread::fpropPatch(int x, int y)
@@ -94,26 +118,48 @@ void ImageLearnThread::fpropPatch(int x, int y)
 void ImageLearnThread::Private::mainLoop()
 {
     doStop = false;
+    size_t lastEpoch = learner->epoch();
     QTime tm;
     tm.start();
     while (!doStop)
     {
+        // render reconstruction
         if (imageRecon)
         {
-            learner->renderImageReconstruction(imageRecon);
+            if (imageReconSrc)
+                ImageLearner::renderImageReconstruction(
+                            learner->net(),
+                            learner->sizeIn(),
+                            learner->sizeOut(),
+                            imageReconSrc, imageRecon);
+            else
+                learner->renderImageReconstruction(imageRecon);
             imageRecon = 0;
+            imageReconSrc = 0;
             emit p->reconstructionFinished();
         }
 
+        // training
         {
             QMutexLocker lock(&mutex);
             learner->trainStep(20);
-            infoStr = learner->infoString();
         }
         p->msleep(10);
 
-        if (tm.elapsed() > 1000)
+        float elapsed = float(tm.elapsed()) / 1000.;
+        if (elapsed > 1.f)
         {
+            fps = (learner->epoch() - lastEpoch) / elapsed;
+            lastEpoch = learner->epoch();
+
+            std::stringstream s;
+            s << learner->infoString()
+              << "\nfps             : " << fps
+              << "\nfull image time : "
+                << (learner->stepsPerImage() / fps / 60) << " min";
+
+            infoStr = s.str();
+
             emit p->progress();
             tm.start();
         }

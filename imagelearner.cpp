@@ -23,10 +23,11 @@ struct ImageLearner::Private
         : p         (p)
         , net       (0)
         , image     (0)
-        , sizeIn    (32, 32)
+        , sizeIn    (48, 48)
         , sizeOut   (16, 16)
-        , learnRate (0.1)
+        , learnRate (1.)
         , errorAv   (0.)
+        , errorAv2  (0.)
         , epoch     (0)
     {
 
@@ -35,20 +36,22 @@ struct ImageLearner::Private
     bool prepareTraining();
     void fpropPatch(int x, int y);
     void trainStep();
+    void corruptInputPatch(int x, int y);
     void getExpectedPatch();
     void renderImageReconstruction(Image *dst);
 
     ImageLearner * p;
 
     MNN::Layer<Float>* net;
-    Image* image, *imageRecon;
+    Image* image, *imageRecon,
+        *imageCorrupt;
 
     QSize sizeIn, sizeOut;
     std::vector<Float>
         patchIn, patchOut,
         patchExpect, patchError;
     Float learnRate,
-        errorAv;
+        errorAv, errorAv2;
     size_t epoch;
 };
 
@@ -68,12 +71,21 @@ ImageLearner::~ImageLearner()
     delete p_;
 }
 
+MNN::Layer<ImageLearner::Float>* ImageLearner::net() const { return p_->net; }
 const QSize& ImageLearner::sizeIn() const { return p_->sizeIn; }
 const QSize& ImageLearner::sizeOut() const { return p_->sizeOut; }
 const ImageLearner::Float* ImageLearner::patchIn() const { return &p_->patchIn[0]; }
 const ImageLearner::Float* ImageLearner::patchOut() const { return &p_->patchOut[0]; }
 const ImageLearner::Float* ImageLearner::patchExpect() const { return &p_->patchExpect[0]; }
 const ImageLearner::Float* ImageLearner::patchError() const { return &p_->patchError[0]; }
+size_t ImageLearner::epoch() const { return p_->epoch; }
+size_t ImageLearner::stepsPerImage() const
+{
+    if (!p_->image)
+        return 0;
+    return (p_->image->width())// / p_->sizeOut.width())
+         * (p_->image->height());// / p_->sizeOut.height());
+}
 
 void ImageLearner::setNet(MNN::Layer<Float> *net)
 {
@@ -83,6 +95,7 @@ void ImageLearner::setNet(MNN::Layer<Float> *net)
     p_->net->addRef();
 
     p_->errorAv = 0.;
+    p_->errorAv2 = 0.;
     p_->epoch = 0;
     /*
     // resize
@@ -100,6 +113,14 @@ void ImageLearner::setImage(Image *img)
         p_->image->releaseRef();
     p_->image = img;
     p_->image->addRef();
+}
+
+void ImageLearner::setCorruptedImage(Image *img)
+{
+    if (p_->imageCorrupt)
+        p_->imageCorrupt->releaseRef();
+    p_->imageCorrupt = img;
+    p_->imageCorrupt->addRef();
 }
 
 void ImageLearner::trainStep(int iterations)
@@ -148,10 +169,12 @@ void ImageLearner::Private::fpropPatch(int x, int y)
 {
     image->getPatch(&patchIn[0], x, y, sizeIn.width(), sizeIn.height());
 
+    getExpectedPatch();
+    corruptInputPatch(x, y);
+
     // get output
     net->fprop(&patchIn[0], &patchOut[0]);
 
-    getExpectedPatch();
 
     // get error
     for (size_t i=0; i<patchOut.size(); ++i)
@@ -173,11 +196,22 @@ void ImageLearner::Private::trainStep()
 
     error = Float(100) * error / patchOut.size();
     errorAv += 1./100. * (error - errorAv);
+    errorAv2 += 1./1000. * (errorAv - errorAv2);
 
     // train
     net->bprop(&patchError[0], 0, learnRate);
 
     ++epoch;
+}
+
+void ImageLearner::Private::corruptInputPatch(int x, int y)
+{
+#if 0
+    for (auto& v : patchIn)
+        v += MNN::rnd(-0.3, 0.3);
+#endif
+
+    imageCorrupt->getPatch(&patchIn[0], x, y, sizeIn.width(), sizeIn.height());
 }
 
 void ImageLearner::Private::getExpectedPatch()
@@ -198,11 +232,12 @@ void ImageLearner::Private::getExpectedPatch()
     }
 }
 
+
 std::string ImageLearner::infoString() const
 {
     std::stringstream s;
     s <<   "train step : " << p_->epoch
-      << "\nav. error  : " << p_->errorAv
+      << "\nav. error  : " << p_->errorAv2 << " (" << p_->errorAv << ")"
          ;
     return s.str();
 }
@@ -224,11 +259,42 @@ void ImageLearner::Private::renderImageReconstruction(Image *dst)
             oy = (sizeIn.height() - sizeOut.height()) / 2,
             ox = (sizeIn.width() - sizeOut.width()) / 2;
 
-    for (size_t j = 0; j < image->height() - sizeIn.height(); j += sizeOut.height())
-    for (size_t i = 0; i < image->width() - sizeIn.width(); i += sizeOut.width())
+    for (size_t j = 0; j <= image->height() - sizeIn.height(); j += sizeOut.height())
+    for (size_t i = 0; i <= image->width() - sizeIn.width(); i += sizeOut.width())
     {
         // get input patch
         image->getPatch(&patchIn[0], i, j, sizeIn.width(), sizeIn.height());
+
+        corruptInputPatch(i, j);
+
+        // get output patch
+        net->fprop(&patchIn[0], &patchOut[0]);
+
+        // store in dst
+        dst->setPatch(&patchOut[0], ox+i, oy+j, sizeOut.width(), sizeOut.height());
+    }
+}
+
+void ImageLearner::renderImageReconstruction(
+        MNN::Layer<Float>* net, const QSize& sizeIn, const QSize& sizeOut,
+        Image* src, Image* dst)
+{
+    std::vector<Float>
+            patchIn(sizeIn.width() * sizeIn.height()),
+            patchOut(sizeOut.width() * sizeOut.height());
+
+    dst->resize(src->width(), src->height(), 1);
+    dst->clear();
+
+    const int
+            oy = (sizeIn.height() - sizeOut.height()) / 2,
+            ox = (sizeIn.width() - sizeOut.width()) / 2;
+
+    for (size_t j = 0; j <= src->height() - sizeIn.height(); j += sizeOut.height())
+    for (size_t i = 0; i <= src->width() - sizeIn.width(); i += sizeOut.width())
+    {
+        // get input patch
+        src->getPatch(&patchIn[0], i, j, sizeIn.width(), sizeIn.height());
 
         // get output patch
         net->fprop(&patchIn[0], &patchOut[0]);

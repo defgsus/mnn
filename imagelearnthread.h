@@ -40,6 +40,10 @@ public:
     void setNet(MNN::Layer<Float>* net);
     /** Sets the image to learn. Adds reference */
     void setImage(Image* img);
+    /** Sets the corrupted image to learn. Adds reference */
+    void setImageCorrupt(Image* img);
+    /** Sets both at once */
+    void setImages(Image* goal, Image* corrupted);
 
     /** Selects an input patch from the current image
         and propagtes through network.
@@ -50,10 +54,15 @@ public:
     void fpropPatch(int x, int y);
 
     /** Adds a request to reconstruct the current image
-        through the network into @p img.
+        through the network into @p dst.
         The image is resized appropriately.
         reconstructionFinished() is emitted when done. */
-    void renderReconstruction(Image* img);
+    void renderReconstruction(Image* dst);
+
+    /** Adds a request to pass image @p src patch by patch
+        into image @p dst. @p dst is resized appropriately.
+        reconstructionFinished() is emitted when done. */
+    void renderReconstruction(Image* src, Image* dst);
 
 public slots:
 

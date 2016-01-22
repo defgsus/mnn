@@ -26,7 +26,8 @@ SOURCES += \
     image.cpp \
     gui/imagelearnwindow.cpp \
     imagelearner.cpp \
-    imagelearnthread.cpp
+    imagelearnthread.cpp \
+    gui/netwidget.cpp
 
 HEADERS += \
     trainposition.h \
@@ -43,7 +44,8 @@ HEADERS += \
     image.h \
     gui/imagelearnwindow.h \
     imagelearner.h \
-    imagelearnthread.h
+    imagelearnthread.h \
+    gui/netwidget.h
 
 OTHER_FILES += \
     .gitignore \

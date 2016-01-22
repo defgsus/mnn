@@ -14,6 +14,7 @@
 #include "mnn/layer.h"
 #include "mnn/stack_serial.h"
 #include "mnn/stack_parallel.h"
+#include "mnn/stack_split.h"
 #include "mnn/feedforward.h"
 #include "mnn/convolution.h"
 #include "mnn/rbm.h"
